@@ -1,7 +1,12 @@
 #!/bin/sh
 
-nova_agent="/usr/sbin/nova-agent"
-agent_config="/usr/share/nova-agent/nova-agent.py"
+prefix="@prefix@"
+exec_prefix="@exec_prefix@"
+sbindir="@sbindir@"
+datadir="@datarootdir@"
+
+nova_agent="${sbindir}/nova-agent"
+agent_config="${datadir}/nova-agent.py"
 pidfile="/var/run/nova-agent.pid"
 logfile="/var/log/nova-agent.log"
 loglevel="info"
