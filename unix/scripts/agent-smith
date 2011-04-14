@@ -16,6 +16,8 @@
 
 rm -f /etc/init.d/agent-smith
 rm -f /etc/init.d/agent-smith.init
+# Remove /installer.sh from nova-agent tarball
+rm -f /installer.sh
 
 cp -p /usr/share/nova-agent/etc/nova-agent.init /etc/init.d/nova-agent
 

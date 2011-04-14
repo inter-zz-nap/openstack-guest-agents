@@ -41,3 +41,6 @@ unix/src/Makefile.in
 unix/src/nova-agent
 unix/tests/Makefile
 unix/tests/Makefile.in
+unix/scripts/installer.sh
+unix/scripts/nova-agent.init
+unix/scripts/nova-agent.redhat.init

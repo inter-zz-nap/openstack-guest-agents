@@ -174,18 +174,16 @@ class UpdateCommand(commands.CommandBase):
 
             if retcode != 0:
                 return (500, "Agent installer script failed: %d" % retcode)
+        else:
+            #
+            # Old way, no installer
+            #
 
-            return (0, "")
+            t.close()
 
-        #
-        # Old way, no installer
-        #
-
-        t.close()
-
-        # Using shutil.move instead of os.rename() because we might be
-        # moving across filesystems.
-        shutil.move(local_filename, dest_filename)
+            # Using shutil.move instead of os.rename() because we might be
+            # moving across filesystems.
+            shutil.move(local_filename, dest_filename)
 
         try:
             p = subprocess.Popen(["sh", INIT_SCRIPT, "restart"],

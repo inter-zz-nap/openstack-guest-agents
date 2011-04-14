@@ -1,5 +1,5 @@
 AC_PREREQ([2.59])
-AC_INIT([nova-agent], [0.0.1.2], [chris.behrens@rackspace.com])
+AC_INIT([nova-agent], [0.0.1.3], [chris.behrens@rackspace.com])
 AC_CONFIG_SRCDIR([src/nova-agent.c])
 AC_CONFIG_HEADERS([include/config.h])
 
@@ -109,6 +109,8 @@ AC_CONFIG_FILES([Makefile
                  commands/Makefile
                  tests/Makefile
                  scripts/installer.sh
+                 scripts/nova-agent.init
+                 scripts/nova-agent.redhat.init
                  ])
 
 AC_OUTPUT
