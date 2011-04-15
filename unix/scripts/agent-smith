@@ -16,10 +16,38 @@
 
 rm -f /etc/init.d/agent-smith
 rm -f /etc/init.d/agent-smith.init
+
+# This forks into the background and looks for the old agent script
+# to write out a response into the spool dir.  We catch it, and force
+# the response into the xenstore.. and then remove the spool dir
+(
+    tries=0
+    while [ $tries -lt 20 ] ; do
+        old_agent_response=`find /var/spool/agent-smith/incoming -type f | tail -1`
+        if [ "x${old_agent_response}" != "x" ]; then
+            break
+        fi
+        tries=`expr $tries + 1`
+        sleep 1
+    done
+
+    old_agent_response=`find /var/spool/agent-smith/incoming -type f | tail -1`
+
+    uuid=`basename ${old_agent_response}`
+
+    echo $old_agent_response >> /tmp/shit.out
+    echo $uuid >> /tmp/shit.out
+    echo `cat ${old_agent_response}` >> /tmp/shit.out
+
+    xenstore-write data/guest/${uuid} "`cat ${old_agent_response}`"
+
+    rm -rf /var/spool/agent-smith
+) &
+
 # Remove /installer.sh from nova-agent tarball
 rm -f /installer.sh
 
-init_script=`find /usr/share/nova-agent -name nova-agent.init | tail -1`
+init_script=`find /usr/share/nova-agent -name nova-agent.init | head -1`
 
 ln -s ${init_script} /etc/init.d/nova-agent
 
