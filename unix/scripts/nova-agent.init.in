@@ -3,7 +3,7 @@
 prefix="@prefix@"
 exec_prefix="@exec_prefix@"
 sbindir="@sbindir@"
-datadir="@datarootdir@"
+datadir="@datarootdir@/nova-agent"
 
 nova_agent="${sbindir}/nova-agent"
 agent_config="${datadir}/nova-agent.py"
