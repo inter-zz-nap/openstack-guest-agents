@@ -57,10 +57,10 @@ bintar: all
 	@$(MAKE) install DESTDIR=$(CURDIR)/${BINTARDIR}
 	@mkdir ${FULLBINTARDIR}/${datadir}/etc
 	@chmod -R go-rwx ${FULLBINTARDIR}
-	@cp $(top_srcdir)/scripts/agent-smith ${FULLBINTARDIR}/$(sbindir)/.
+	@cp $(top_srcdir)/scripts/agent-smith ${FULLBINTARDIR}/usr/sbin/.
 	@cp $(top_srcdir)/scripts/nova-agent* ${FULLBINTARDIR}/${datadir}/etc/.
 	@cp $(top_srcdir)/scripts/installer.sh ${FULLBINTARDIR}/.
-	@chmod 700 ${FULLBINTARDIR}/${sbindir}/agent-smith
+	@chmod 700 ${FULLBINTARDIR}/usr/sbin/agent-smith
 	@chmod 700 ${FULLBINTARDIR}/${datadir}/etc/*
 	@chmod 700 ${FULLBINTARDIR}/installer.sh
 # agent-smith requires that we don't have a subdir in the tar
