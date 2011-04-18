@@ -13,8 +13,7 @@ EXTRA_DIST = install_libs.py install_modules.py nova-agent.py \
 data_DATA = nova-agent.py
 
 nodist_noinst_DATA = agentlib.so scripts/installer.sh \
-					scripts/nova-agent.init \
-					scripts/nova-agent.redhat.init
+					scripts/nova-agent.init
 
 agentlib.so:
 	    ln -s lib/.libs/agentlib.so agentlib.so

@@ -110,7 +110,6 @@ AC_CONFIG_FILES([Makefile
                  tests/Makefile
                  scripts/installer.sh
                  scripts/nova-agent.init
-                 scripts/nova-agent.redhat.init
                  ])
 
 AC_OUTPUT
