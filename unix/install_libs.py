@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -57,19 +58,21 @@ def install_libs(binary, installdir):
         return libs
 
     for lib in find_libs(binary):
-        if lib.startswith(installdir):
+        fname = os.path.basename(lib)
+        if os.path.exists(installdir + '/' + fname):
             # Already installed
             continue
         print "Installing %s" % lib
         shutil.copy2(lib, installdir)
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print "Usage: install_libs.py <binary_name> <install_dir>"
+    if len(sys.argv) != 4:
+        print "Usage: install_libs.py <binary_name> <data_dir> <install_dir>"
         sys.exit(1)
 
     binary = sys.argv[1]
-    installdir = sys.argv[2]
+    datadir = sys.argv[2]
+    installdir = sys.argv[3]
 
     if not os.path.exists(installdir):
         os.makedirs(installdir)
@@ -77,4 +80,21 @@ if __name__ == "__main__":
         print "Error: '%s' exists and is not a directory" % installdir
         sys.exit(1)
 
+    #
+    # Find all dynamic libraries in 'datadir' and look for libraries
+    # there, also.
+    #
+
+    so_re = re.compile('.*\.so(\.\d+)*$')
+
+    for root, dirs, files in os.walk(datadir):
+        for f in files:
+            # Skip the interpreter
+            if f.startswith('ld-'):
+                continue
+            if so_re.match(f):
+                fname = root + '/' + f
+                install_libs(fname, installdir)
+
+    # Install all the libs the binary itself needs
     install_libs(binary, installdir)
