@@ -1,4 +1,19 @@
 #!/bin/sh
+#
+# nova-agent	Startup script for cloud servers guest agent
+#
+# chkconfig: 2345 15 85
+# description: nova-agent is a agent meant to run on linux guest instances \
+#              on Citrix XenServer for manipulating the guest through \
+#              xenstore.
+# processname: nova-agent
+# pidfile: /var/run/nova-agent.pid
+
+# Source function library.
+if [ -e "/etc/rc.d/init.d/functions" ]
+then
+  . /etc/rc.d/init.d/functions
+fi
 
 prefix="@prefix@"
 exec_prefix="@exec_prefix@"
