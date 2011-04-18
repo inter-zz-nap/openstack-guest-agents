@@ -1,0 +1,30 @@
+
+The following packages are required for building:
+
+Debian/Ubuntu:
+apt-get install autoconf build-essential python-cjson libxen3-dev
+apt-get install python-anyjson python-pip python-crypto
+pip install pyxenstore
+
+CentOS/RedHat, etc:
+
+(Will update this later.  Use the packages above as a guide)
+
+
+The following is needed for make install or make bintar:
+
+patchelf  -- You can find a package for it here:
+             http://hydra.nixos.org/project/patchelf/jobstatus
+             Click the number to the left of the correct package
+
+
+To build:
+
+1) sh autogen.sh
+2) ./configure
+   (default prefix is /usr which means that the agent will be installed
+   into /usr/share/nova-agent/<version>.  A symlink will be created in
+   /usr/sbin for nova-agent)
+3) make
+4) make check
+5) make install (or make bintar)
