@@ -17,6 +17,6 @@ nobase_dist_noinst_SCRIPTS = ${my_subdir_files}
 nodist_commands_SCRIPTS = ${my_files:.py=.pyc}
 nobase_nodist_commands_SCRIPTS = ${my_subdir_files:.py=.pyc}
 
-${my_files:.py=.pyc} ${my_subdir_files:.py=.pyc}:
+${my_files:.py=.pyc} ${my_subdir_files:.py=.pyc}: ${my_files} ${my_subdir_files}
 	${PYTHON_VER} -m py_compile ${@:.pyc=.py}
 

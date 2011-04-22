@@ -136,7 +136,7 @@ class UpdateCommand(commands.CommandBase):
             t = tarfile.open(local_filename, 'r:*')
         except tarfile.TarError, e:
             os.unlink(local_filename)
-            return (500, str(e))
+            return (500, "%s: %s" % (local_filename, str(e)))
 
         found_installer = None
         for tarinfo in t.getmembers():

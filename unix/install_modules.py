@@ -6,6 +6,12 @@ import sys
 
 import commands.command_list
 
+# Other modules here that get lazy loaded.. :-/
+import httplib
+import zlib
+import gzip
+import bz2
+
 
 def install_modules(system_paths, installdir):
 
