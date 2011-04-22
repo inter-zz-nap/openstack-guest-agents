@@ -50,11 +50,12 @@ import redhat.network
 import arch.network
 import suse.network
 import gentoo.network
+import freebsd.network
 
 
 XENSTORE_INTERFACE_PATH = "vm-data/networking"
 XENSTORE_HOSTNAME_PATH = "vm-data/hostname"
-DEFAULT_HOSTNAME = 'linux'
+DEFAULT_HOSTNAME = ''
 HOSTS_FILE = '/etc/hosts'
 
 
@@ -77,7 +78,8 @@ class NetworkCommands(commands.CommandBase):
                         "oracle": redhat,
                         "arch": arch,
                         "opensuse": suse,
-                        "gentoo": gentoo}
+                        "gentoo": gentoo,
+                        "FreeBSD": freebsd}
 
         system = os.uname()[0]
         if system == "Linux":
@@ -92,18 +94,24 @@ class NetworkCommands(commands.CommandBase):
             # something easier to use
             if system:
                 system = system.lower().split(' ')[0]
-
             # Arch Linux returns None for platform.linux_distribution()
-            if not system and os.path.exists('/etc/arch-release'):
+            elif os.path.exists('/etc/arch-release'):
                 system = 'arch'
 
         if not system:
             return None
+        else:
+            global DEFAULT_HOSTNAME
+            DEFAULT_HOSTNAME = system
 
         return translations.get(system)
 
     @commands.command_add('resetnetwork')
     def resetnetwork_cmd(self, data):
+
+        os_mod = self.detect_os()
+        if not os_mod:
+            raise SystemError("Couldn't figure out my OS")
 
         xs_handle = pyxenstore.Handle()
 
@@ -126,10 +134,6 @@ class NetworkCommands(commands.CommandBase):
         del xs_handle
 
         data = {"hostname": hostname, "interfaces": interfaces}
-
-        os_mod = self.detect_os()
-        if not os_mod:
-            raise SystemError("Couldn't figure out my OS")
 
         return os_mod.network.configure_network(data)
 
