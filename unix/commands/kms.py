@@ -43,7 +43,7 @@ class ActivateCommand(commands.CommandBase):
         system = os.uname()[0]
         if system == "Linux":
             try:
-                system = platform.linux_distribution(None)[0]
+                system = platform.linux_distribution(full_distribution_name=0)[0]
             except AttributeError:
                 # linux_distribution doesn't exist... try the older
                 # call
