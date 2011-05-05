@@ -106,7 +106,7 @@ def kms_activate(data):
     activation_key = data['activation_key']
     profile = data['profile']
 
-    domains = data.get('domains')
+    domains = data['domains']
 
     update_files = configure_up2date(domains)
 
