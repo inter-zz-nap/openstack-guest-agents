@@ -21,6 +21,8 @@ redhat/centos KMS activation helper module
 """
 
 import os
+import subprocess
+import logging
 
 import commands.network
 
