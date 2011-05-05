@@ -3,10 +3,10 @@ include $(top_srcdir)/Common.am
 
 
 my_files = __init__.py command_list.py network.py \
-           update.py file_inject.py misc.py password.py
+           update.py file_inject.py misc.py password.py kms.py
 
 my_subdir_files = debian/__init__.py debian/network.py \
-                  redhat/__init__.py redhat/network.py \
+                  redhat/__init__.py redhat/network.py redhat/kms.py \
                   arch/__init__.py arch/network.py \
                   suse/__init__.py suse/network.py \
                   gentoo/__init__.py gentoo/network.py
