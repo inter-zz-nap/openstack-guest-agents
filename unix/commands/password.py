@@ -161,11 +161,11 @@ class PasswordCommands(commands.CommandBase):
         if self.kwargs.get('testmode', False):
             return None
 
+        pipe = subprocess.PIPE
+
         try:
             p = subprocess.Popen(["/usr/sbin/chpasswd"],
-                    stdin=subprocess.PIPE,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE)
+                    stdin=pipe, stdout=pipe, stderr=pipe)
             p.communicate("root:%s\n" % passwd)
             ret = p.returncode
             if ret:
@@ -174,9 +174,7 @@ class PasswordCommands(commands.CommandBase):
 
         except Exception, e:
             p = subprocess.Popen(["/usr/bin/passwd", "root"],
-                    stdin=subprocess.PIPE,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE)
+                    stdin=pipe, stdout=pipe, stderr=pipe)
             # Some password programs clear stdin after they display
             # prompts.  So, we can hack around this by sleeping.  Another
             # Option would be to do some read()s, but we might need to

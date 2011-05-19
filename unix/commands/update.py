@@ -151,6 +151,8 @@ class UpdateCommand(commands.CommandBase):
                 found_installer = name
                 break
 
+        pipe = subprocess.PIPE
+
         if found_installer:
             dest_path = "%s.%d" % (DEST_PATH, os.getpid())
 
@@ -164,9 +166,7 @@ class UpdateCommand(commands.CommandBase):
             os.unlink(local_filename)
 
             p = subprocess.Popen(["%s/%s" % (dest_path, found_installer)],
-                    stdin=subprocess.PIPE,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE)
+                    stdin=pipe, stdout=pipe, stderr=pipe)
             p.communicate(None)
             retcode = p.returncode
 
@@ -187,9 +187,7 @@ class UpdateCommand(commands.CommandBase):
 
         try:
             p = subprocess.Popen(["sh", INIT_SCRIPT, "restart"],
-                    stdin=subprocess.PIPE,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE)
+                    stdin=pipe, stdout=pipe, stderr=pipe)
             p.communicate(None)
             retcode = p.returncode
         except OSError, e:
