@@ -21,9 +21,9 @@ resetnetwork interfaces tester
 """
 
 import os
-import unittest
 from cStringIO import StringIO
 
+import agent_test
 import commands.redhat.network
 import commands.debian.network
 import commands.arch.network
@@ -31,9 +31,9 @@ import commands.gentoo.network
 import commands.suse.network
 
 
-class TestInterfacesUpdates(unittest.TestCase):
+class TestInterfacesUpdates(agent_test.TestCase):
 
-    def _run_test(self, dist, input, **config):
+    def _run_test(self, dist, inputdata, **config):
         interfaces = []
         for label, options in config.iteritems():
             interface = {'label': label, 'mac': options['hwaddr']}
@@ -62,8 +62,8 @@ class TestInterfacesUpdates(unittest.TestCase):
             interfaces.append(interface)
 
         mod = getattr(commands, dist).network
-        if input:
-            return mod.get_interface_files(StringIO(input), interfaces)
+        if inputdata:
+            return mod.get_interface_files(StringIO(inputdata), interfaces)
         else:
             return mod.get_interface_files(interfaces)
 
@@ -165,7 +165,7 @@ class TestInterfacesUpdates(unittest.TestCase):
 
     def test_arch_ipv4(self):
         """Test setting public IPv4 for Arch networking"""
-        input = '\n'.join([
+        inputdata = '\n'.join([
             'eth0="eth0 192.0.2.250 netmask 255.255.255.0"',
             'INTERFACES=(eth0)',
             'gateway="default gw 192.0.2.254"',
@@ -176,7 +176,7 @@ class TestInterfacesUpdates(unittest.TestCase):
             'gateway4': '192.0.2.1',
             'dns': ['192.0.2.2'],
         }
-        outfiles = self._run_test('arch', input, public=interface)
+        outfiles = self._run_test('arch', inputdata, public=interface)
         self.assertTrue('rc.conf' in outfiles)
         self.assertEqual(outfiles['rc.conf'], '\n'.join([
             'eth0="eth0 192.0.2.42 netmask 255.255.255.0"',
@@ -186,7 +186,7 @@ class TestInterfacesUpdates(unittest.TestCase):
 
     def test_arch_ipv6(self):
         """Test setting public IPv6 for Arch networking"""
-        input = '\n'.join([
+        inputdata = '\n'.join([
             'eth0="eth0 add 2001:db8::fff0/96"',
             'INTERFACES=(eth0)',
             'gateway6="default gw 2001:db8::fffe"',
@@ -197,7 +197,7 @@ class TestInterfacesUpdates(unittest.TestCase):
             'gateway6': '2001:db8::1',
             'dns': ['2001:db8::2'],
         }
-        outfiles = self._run_test('arch', input, public=interface)
+        outfiles = self._run_test('arch', inputdata, public=interface)
         self.assertTrue('rc.conf' in outfiles)
         self.assertEqual(outfiles['rc.conf'], '\n'.join([
             'eth0="eth0 add 2001:db8::42/96"',

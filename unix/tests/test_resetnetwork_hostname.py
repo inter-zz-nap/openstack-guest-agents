@@ -21,9 +21,9 @@ resetnetwork hostname tester
 """
 
 import os
-import unittest
 from cStringIO import StringIO
 
+import agent_test
 import commands.redhat.network
 import commands.debian.network
 import commands.arch.network
@@ -31,7 +31,7 @@ import commands.gentoo.network
 import commands.suse.network
 
 
-class TestHostNameUpdates(unittest.TestCase):
+class TestHostNameUpdates(agent_test.TestCase):
 
     def _run_test(self, dist, hostname, infile=None):
         mod = getattr(commands, dist).network
