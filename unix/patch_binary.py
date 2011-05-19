@@ -31,9 +31,7 @@ if __name__ == "__main__":
 
     interpreter = filter(lambda f: f.startswith('ld-'),
             os.listdir(destdir + libdir))
-    if not interpreter:
-        sys.exit("Could not find interpreter")
-
-    interpreter = interpreter[0]
+    if interpreter:
+        interpreter = interpreter[0]
 
     patch_binary(binary, libdir, interpreter)

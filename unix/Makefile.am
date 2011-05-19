@@ -18,7 +18,7 @@ nodist_noinst_DATA = agentlib.so scripts/installer.sh \
 agentlib.so:
 	    ln -s lib/.libs/agentlib.so agentlib.so
 
-BINTARDIR = @PACKAGE@-`uname -m`-@PACKAGE_VERSION@
+BINTARDIR = @PACKAGE@-`uname -s`-`uname -m`-@PACKAGE_VERSION@
 BINTARNAME = ${BINTARDIR}.tar.gz
 FULLBINTARDIR = $(top_srcdir)/${BINTARDIR}
 

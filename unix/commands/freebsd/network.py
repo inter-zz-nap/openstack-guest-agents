@@ -93,6 +93,7 @@ def configure_network(network_config, *args, **kwargs):
 
     return (0, "")
 
+
 def _get_resolv_conf(interfaces):
     resolv_data = ''
     for interface in interfaces:
@@ -106,6 +107,7 @@ def _get_resolv_conf(interfaces):
         return ''
 
     return '# Automatically generated, do not edit\n' + resolv_data
+
 
 def _create_rcconf_file(infile, interfaces, hostname):
     """
@@ -170,9 +172,9 @@ def _create_rcconf_file(infile, interfaces, hostname):
             if not gateway4 and not gateway6:
                 raise SystemError("No gateway found for public interface")
             if gateway4 and not len(defaultrouter):
-                defaultrouter=gateway4
+                defaultrouter = gateway4
             if gateway6 and not len(ipv6_defaultrouter):
-                ipv6_defaultrouter=gateway6
+                ipv6_defaultrouter = gateway6
             if len(ip6s):
                 if len(ipv6_interfaces):
                     ipv6_interfaces += ','
