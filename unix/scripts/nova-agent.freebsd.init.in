@@ -30,11 +30,10 @@
 # pidfile: /var/run/nova-agent.pid
 #
 
-# Source function library.
-if [ -e "/etc/rc.d/init.d/functions" ]
-then
-  . /etc/rc.d/init.d/functions
-fi
+# PROVIDE: nova-agent
+# BEFORE: netif
+# REQUIRE: FILESYSTEMS
+
 
 prefix="@prefix@"
 exec_prefix="@exec_prefix@"

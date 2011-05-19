@@ -12,8 +12,16 @@ EXTRA_DIST = install_libs.py install_modules.py nova-agent.py \
 
 data_DATA = nova-agent.py
 
-nodist_noinst_DATA = agentlib.so scripts/installer.sh \
-					scripts/nova-agent.init
+nodist_noinst_DATA = agentlib.so \
+					scripts/installer.sh \
+					scripts/nova-agent.init \
+					scripts/nova-agent.freebsd.init
+
+noinst_DATA = scripts/nova-agent.init.in \
+			  scripts/nova-agent.freebsd.init.in
+
+etc_DATA = scripts/nova-agent.init \
+		   scripts/nova-agent.freebsd.init
 
 agentlib.so:
 	    ln -s lib/.libs/agentlib.so agentlib.so
@@ -54,13 +62,10 @@ coverage:: check
 bintar: all
 	@rm -rf ${FULLBINTARDIR}; mkdir ${FULLBINTARDIR}
 	@$(MAKE) install DESTDIR=$(CURDIR)/${BINTARDIR}
-	@mkdir ${FULLBINTARDIR}/${datadir}/etc
 	@chmod -R go-rwx ${FULLBINTARDIR}
 	@cp $(top_srcdir)/scripts/agent-smith ${FULLBINTARDIR}/${prefix}/sbin/.
-	@cp $(top_srcdir)/scripts/nova-agent* ${FULLBINTARDIR}/${datadir}/etc/.
 	@cp $(top_srcdir)/scripts/installer.sh ${FULLBINTARDIR}/.
 	@chmod 700 ${FULLBINTARDIR}/${prefix}/sbin/agent-smith
-	@chmod 700 ${FULLBINTARDIR}/${datadir}/etc/*
 	@chmod 700 ${FULLBINTARDIR}/installer.sh
 # agent-smith requires that we don't have a subdir in the tar
 # once agent-smith is dead, we can use this

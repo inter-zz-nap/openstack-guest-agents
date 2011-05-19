@@ -31,7 +31,7 @@ import commands
 TMP_PATH = "/var/run"
 DEST_PATH = "/usr/share/nova-agent"
 DEST_FILE = "/var/run/nova-agent.tar"
-INIT_SCRIPT = "/etc/init.d/nova-agent"
+INIT_SCRIPTS = ["/etc/init.d/nova-agent", "/etc/rc.d/nova-agent"]
 
 # This is to support older python versions that don't have hashlib
 try:
@@ -185,8 +185,17 @@ class UpdateCommand(commands.CommandBase):
             # moving across filesystems.
             shutil.move(local_filename, dest_filename)
 
+        init_script = None
+        for script in INIT_SCRIPTS:
+            if os.path.exists(script):
+                init_script = script
+                break
+
+        if not init_script:
+            return(404, "No init script found to restart")
+
         try:
-            p = subprocess.Popen(["sh", INIT_SCRIPT, "restart"],
+            p = subprocess.Popen(["sh", init_script, "restart"],
                     stdin=pipe, stdout=pipe, stderr=pipe)
             p.communicate(None)
             retcode = p.returncode
