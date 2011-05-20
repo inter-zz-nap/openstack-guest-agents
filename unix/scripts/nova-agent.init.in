@@ -40,6 +40,7 @@ prefix="@prefix@"
 exec_prefix="@exec_prefix@"
 sbindir="@sbindir@"
 datadir="@datarootdir@/nova-agent"
+reallibdir="@prefix@/share/@PACKAGE@/@PACKAGE_VERSION@/lib"
 
 nova_agent="${sbindir}/nova-agent"
 agent_config="${datadir}/nova-agent.py"
@@ -60,6 +61,8 @@ SCRIPTNAME=$0
 
 case "$1" in
   start)
+    LD_LIBRARY_PATH="${reallibdir}"
+    export LD_LIBRARY_PATH
 	do_start
 	;;
   stop)
