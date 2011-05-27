@@ -43,4 +43,4 @@ unix/tests/Makefile
 unix/tests/Makefile.in
 unix/scripts/installer.sh
 unix/scripts/nova-agent.init
-unix/scripts/nova-agent.redhat.init
+unix/scripts/nova-agent.freebsd.init
