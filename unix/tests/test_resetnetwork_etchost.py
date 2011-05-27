@@ -21,13 +21,13 @@ resetnetwork /etc/hosts tester
 """
 
 import os
-import unittest
 from cStringIO import StringIO
 
+import agent_test
 import commands.network
 
 
-class TestEtcHostUpdates(unittest.TestCase):
+class TestEtcHostUpdates(agent_test.TestCase):
 
     _interfaces = [{'label': 'public', 'ips': [{'ip': '192.0.2.1'}]}]
     _hostname = 'example'

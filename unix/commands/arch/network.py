@@ -59,9 +59,12 @@ def configure_network(network_config, *args, **kwargs):
     # Write out new files
     commands.network.update_files(update_files)
 
+    pipe = subprocess.PIPE
+
     # Set hostname
     logging.debug('executing /bin/hostname %s' % hostname)
-    p = subprocess.Popen(["/bin/hostname", hostname])
+    p = subprocess.Popen(["/bin/hostname", hostname],
+            stdin=pipe, stdout=pipe, stderr=pipe)
     logging.debug('waiting on pid %d' % p.pid)
     status = os.waitpid(p.pid, 0)[1]
     logging.debug('status = %d' % status)
@@ -71,7 +74,8 @@ def configure_network(network_config, *args, **kwargs):
 
     # Restart network
     logging.debug('executing /etc/rc.d/network restart')
-    p = subprocess.Popen(["/etc/rc.d/network", "restart"])
+    p = subprocess.Popen(["/etc/rc.d/network", "restart"],
+            stdin=pipe, stdout=pipe, stderr=pipe)
     logging.debug('waiting on pid %d' % p.pid)
     status = os.waitpid(p.pid, 0)[1]
     logging.debug('status = %d' % status)
