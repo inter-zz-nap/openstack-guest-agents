@@ -46,6 +46,11 @@ if __name__ == "__main__":
         print "Usage: patch_libs.py <directory> <lib_dir>"
         sys.exit(1)
 
+    # Patching libraries on FreeBSD results in .so's that libelf
+    # can't load.  It's a dumbness with libelf implementation
+    if os.uname()[0] == 'FreeBSD':
+        sys.exit(0)
+
     directory = sys.argv[1]
     libdir = sys.argv[2]
 

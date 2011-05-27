@@ -33,11 +33,11 @@ except ImportError:
 
         @staticmethod
         def serialize(buf):
-            getattr(json, 'dumps', json.write)(buf)
+            return json.dumps(buf)
 
         @staticmethod
         def deserialize(buf):
-            getattr(json, 'loads', json.read)(buf)
+            return json.loads(buf)
 
 from cStringIO import StringIO
 import logging
