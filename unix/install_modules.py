@@ -20,6 +20,7 @@
 
 import os
 import shutil
+import re
 import sys
 
 import commands.command_list
@@ -29,6 +30,19 @@ import httplib
 import zlib
 import gzip
 import bz2
+# Make sure we get at least one of these
+try:
+    import anyjson
+except Exception:
+    pass
+try:
+    import json
+except Exception:
+    pass
+try:
+    import simplejson
+except Exception:
+    pass
 
 
 def install_modules(system_paths, installdir):
@@ -58,6 +72,15 @@ def install_modules(system_paths, installdir):
         else:
             shutil.copy2(src, destdir)
 
+    # Install any .pth files from site-packages for eggs
+    for x in system_paths:
+        if x.endswith('site-packages') and os.path.isdir(x):
+            files = os.listdir(x)
+            for file in files:
+                if re.match('.*\.pth$', file):
+                    _do_install(os.path.join(x, file),
+                            installdir + '/site-packages')
+
     for modname in sys.modules:
 
         if modname == "__main__":
@@ -69,7 +92,6 @@ def install_modules(system_paths, installdir):
             continue
 
         mod_fn = os.path.normpath(mod_fn)
-
         base_dir = ''
 
         for p in system_paths:
@@ -81,13 +103,21 @@ def install_modules(system_paths, installdir):
         # Only install modules that are in the system paths.  We install
         # our command modules separately.
         if base_dir:
+            if base_dir.endswith('site-packages'):
+                site = True
+            else:
+                site = False
             # Turn /usr/lib/python2.6/Crypto/Cipher/AES into:
             # /usr/lib/python2.6/Crypto
             rest_dir = mod_fn[len(base_dir) + 1:]
             if '/' in rest_dir:
                 rest_dir = rest_dir.split('/', 1)[0]
-            _do_install(os.path.join(base_dir, rest_dir),
-                    installdir)
+            if base_dir.endswith('site-packages'):
+                _do_install(os.path.join(base_dir, rest_dir),
+                        installdir + '/site-packages')
+            else:
+                _do_install(os.path.join(base_dir, rest_dir),
+                        installdir)
 
 if __name__ == "__main__":
     prog_name = sys.argv[0]
@@ -105,9 +135,12 @@ if __name__ == "__main__":
     sys_paths.pop(0)
 
     if not os.path.exists(installdir):
-        os.makedirs(installdir)
-    elif not os.path.isdir(installdir):
-        print "Error: '%s' exists and is not a directory" % installdir
+        os.makedirs(installdir + '/site-packages')
+    elif not os.path.exists(installdir + '/site-packages'):
+        os.mkdir(installdir + '/site-packages')
+    elif not os.path.isdir(installdir + '/site-packages'):
+        print "Error: '%s/site-packages' exists and is not a directory" % \
+                installdir
         sys.exit(1)
 
     install_modules(sys_paths, installdir)
