@@ -96,12 +96,7 @@ class CommandBase(object):
 
     @classmethod
     def run_command(cls, cmd_name, arg):
-        try:
-            result = cls._cmds[cmd_name][0](arg)
-        except KeyError:
-            raise CommandNotFoundError(cmd_name)
-
-        return result
+        return cls.command_function(cmd_name)(arg)
 
 
 def command_add(cmd_name):
