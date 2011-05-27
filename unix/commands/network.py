@@ -151,7 +151,8 @@ def _get_etc_hosts(infile, interfaces, hostname):
 
             ip6s = interface.get('ip6s')
             if ip6s:
-                ips.add(ip6s[0]['address'])
+                ip6 = ips6[0]
+                ips.add(ip6.get('address', ip6.get('ip')))
 
     outfile = StringIO()
 

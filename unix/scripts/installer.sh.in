@@ -47,6 +47,7 @@ if [ -d /etc/init.d ]; then
     # Linux
     rm -f /etc/init.d/nova-agent
     ln -s ${dataversdir}/etc/nova-agent.init /etc/init.d/nova-agent
+    update-rc.d nova-agent start 20 2 3 4 5 . stop 20 0 1 6 . > /dev/null 2>&1
 elif [ -d /etc/rc.d ]; then
     # FreeBSD
     rm -f /etc/rc.d/nova-agent

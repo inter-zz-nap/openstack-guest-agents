@@ -16,6 +16,8 @@
 
 rm -f /etc/init.d/agent-smith
 rm -f /etc/init.d/agent-smith.init
+update-rc.d agent-smith remove > /dev/null 2>&1
+update-rc.d agent-smith.init remove > /dev/null 2>&1
 
 # This forks into the background and looks for the old agent script
 # to write out a response into the spool dir.  We catch it, and force
