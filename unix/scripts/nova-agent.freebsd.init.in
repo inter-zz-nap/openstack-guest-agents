@@ -42,7 +42,7 @@ datadir="@datarootdir@/nova-agent"
 reallibdir="@prefix@/share/@PACKAGE@/@PACKAGE_VERSION@/lib"
 
 nova_agent="${sbindir}/nova-agent"
-agent_config="${datadir}/nova-agent.py"
+agent_config="@prefix@/share/@PACKAGE@/nova-agent.py"
 pidfile="/var/run/nova-agent.pid"
 logfile="/var/log/nova-agent.log"
 loglevel="info"
