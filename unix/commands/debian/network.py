@@ -184,12 +184,14 @@ def _get_file_data(interfaces):
                         dns = None
 
             if ip6_info and ip6_info.get('enabled', '0') != '0':
-                try:
-                    ip = ip6_info['address']
-                    netmask = ip6_info['netmask']
-                except KeyError:
+                ip = ip6_info.get('address', ip6_info.get('ip'))
+                if not ip:
                     raise SystemError(
-                            "Missing IP or netmask in interface's IPv6 list")
+                            "Missing IP in interface's IPv6 list")
+                netmask = ip6_info.get('netmask')
+                if not netmask:
+                    raise SystemError(
+                            "Missing netmask in interface's IPv6 list")
 
                 gateway = ip6_info.get('gateway', gateway6)
 
