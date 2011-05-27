@@ -153,6 +153,8 @@ def _get_file_data(interface):
             dns = interface['dns']
         except KeyError:
             raise SystemError("No DNS found for public interface")
+    else:
+        gateway4 = gateway6 = None
 
     ifaces = []
 
@@ -201,14 +203,14 @@ def _get_file_data(interface):
                     raise SystemError(
                             "Missing netmask in interface's IP list")
 
-                gateway = ip_info.get('gateway', gateway6)
+                gateway6 = ip_info.get('gateway', gateway6)
 
                 iface_data += "IPV6INIT=yes\n"
                 iface_data += "IPV6_AUTOCONF=no\n"
                 iface_data += "IPV6ADDR=%s/%s\n" % (ip, netmask)
 
-                if gateway:
-                    iface_data += "IPV6_DEFAULTGW=%s\n" % gateway
+                if gateway6:
+                    iface_data += "IPV6_DEFAULTGW=%s\n" % gateway6
 
         if gateway4 or gateway6:
             for j, nameserver in enumerate(dns):

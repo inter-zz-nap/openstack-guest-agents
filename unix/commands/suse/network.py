@@ -170,6 +170,8 @@ def _get_file_data(interface):
 
         if not gateway4 and not gateway6:
             raise SystemError("No gateway found for public interface")
+    else:
+        gateway4 = gateway6 = None
 
     ifnum = None
 

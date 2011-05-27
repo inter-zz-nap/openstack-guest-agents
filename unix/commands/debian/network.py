@@ -141,6 +141,8 @@ def _get_file_data(interfaces):
                 dns = interface['dns']
             except KeyError:
                 raise SystemError("No DNS found for public interface")
+        else:
+            gateway4 = gateway6 = None
 
         ifname_suffix_num = 0
 

@@ -184,6 +184,8 @@ def _create_rcconf_file(infile, interfaces, hostname):
                 if len(ipv6_interfaces):
                     ipv6_interfaces += ','
                 ipv6_interfaces += ifname_prefix
+        else:
+            gateway4 = gateway6 = None
 
         ifname_suffix_num = 0
 

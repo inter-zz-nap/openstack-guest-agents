@@ -60,13 +60,16 @@ coverage:: check
 	for d in $(SUBDIRS) ; do cd $$d ; for f in *.c ; do gcov $$f; done ; cd ..; done
 
 bintar: all
-	@rm -rf ${FULLBINTARDIR}; mkdir ${FULLBINTARDIR}
+	@rm -rf ${FULLBINTARDIR}
+	@mkdir -m 0755 ${FULLBINTARDIR} ${FULLBINTARDIR}/${prefix}
+	@mkdir -m 0755 ${FULLBINTARDIR}/${prefix}/{share,sbin}
 	@$(MAKE) install DESTDIR=$(CURDIR)/${BINTARDIR}
-	@chmod -R go-rwx ${FULLBINTARDIR}
+	@chmod -R go-rwx ${FULLBINTARDIR}/${datadir}
 	@cp $(top_srcdir)/scripts/agent-smith ${FULLBINTARDIR}/${prefix}/sbin/.
 	@cp $(top_srcdir)/scripts/installer.sh ${FULLBINTARDIR}/.
 	@chmod 700 ${FULLBINTARDIR}/${prefix}/sbin/agent-smith
 	@chmod 700 ${FULLBINTARDIR}/installer.sh
+	@chown -R root:root ${FULLBINTARDIR}
 # agent-smith requires that we don't have a subdir in the tar
 # once agent-smith is dead, we can use this
 #	@tar -czf $(top_srcdir)/${BINTARNAME} -C $(CURDIR) ${BINTARDIR}

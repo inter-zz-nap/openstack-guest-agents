@@ -27,7 +27,7 @@ To build on Linux:
    /usr/sbin for nova-agent)
 3) make
 4) make check
-5) make install (or make bintar)
+5) sudo make install (or sudo make bintar)
 6) ln -s /usr/share/nova-agent/<VERSION>/etc/nova-agent.init /etc/init.d/nova-agent
 7) update-rc.d to add to appropriate runlevels
 
@@ -40,5 +40,5 @@ To build on FreeBSD:
    /usr/sbin for nova-agent)
 3) gmake
 4) gmake check
-5) gmake install (or make bintar)
+5) sudo gmake install (or sudo make bintar)
 6) ln -s /usr/share/nova-agent/<VERSION>/etc/nova-agent.freebsd.init /etc/rc.d/nova-agent
