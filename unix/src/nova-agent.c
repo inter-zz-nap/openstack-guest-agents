@@ -301,6 +301,23 @@ int main(int argc, char **argv)
         }
 
         /* Child */
+
+        /* Create new session */
+        setsid();
+
+        /* Reopen stdin/out/err with /dev/null */
+        int fd = open("/dev/null", O_RDWR);
+        if (fd < 0)
+        {
+            agent_error("could not open /dev/null: %m");
+            agent_python_deinit(pi);
+            exit(1);
+        }
+
+        dup2(fd, 0);
+        dup2(fd, 1);
+        dup2(fd, 2);
+        close(fd);
     }
 
     /* Continue */
