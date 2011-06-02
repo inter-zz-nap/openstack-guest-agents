@@ -47,6 +47,7 @@ import pyxenstore
 import re
 import time
 
+import agentlib
 import commands
 import debian.network
 import redhat.network
@@ -208,6 +209,10 @@ def get_etc_hosts(interfaces, hostname):
         infile = StringIO()
 
     return HOSTS_FILE, _get_etc_hosts(infile, interfaces, hostname)
+
+
+def sethostname(hostname):
+    agentlib.sethostname(hostname)
 
 
 def update_files(update_files, remove_files=None, dont_rename=False):

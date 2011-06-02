@@ -59,12 +59,41 @@ static PyObject *_agentlib_register(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
+static PyObject *_agentlib_sethostname(PyObject *self, PyObject *args)
+{
+    char *host_string;
+    int err;
+    size_t host_len;
+
+    if (!PyArg_ParseTuple(args, "s", &host_string))
+    {
+        return NULL;
+    }
+
+    host_len = strlen(host_string);
+    if (host_len > 63)
+        host_len = 63;
+
+    err = sethostname(host_string, host_len);
+    if (err < 0)
+    {
+        err = errno;
+        return PyErr_Format(PyExc_SystemError,
+                "sethostname() failed with errno '%d'", err);
+    }
+
+    Py_RETURN_NONE;
+}
+
+
 PyMODINIT_FUNC AGENTLIB_PUBLIC_API initagentlib(void)
 {
     static PyMethodDef _agentlib_methods[] =
     {
         { "get_version", (PyCFunction)_agentlib_get_version,
                 METH_NOARGS, "Get the agent version string" },
+        { "sethostname", (PyCFunction)_agentlib_sethostname,
+                METH_VARARGS, "Set the system hostname" },
         { "register", (PyCFunction)_agentlib_register,
                 METH_VARARGS, "Register an exchange plugin to run" },
         { NULL, NULL, METH_NOARGS, NULL }
