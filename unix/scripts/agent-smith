@@ -52,6 +52,7 @@ rm -f /installer.sh
 init_script=`find /usr/share/nova-agent -name nova-agent.init | head -1`
 
 ln -s ${init_script} /etc/init.d/nova-agent
+update-rc.d nova-agent start 20 2 3 4 5 . stop 20 0 1 6 . > /dev/null 2>&1
 
 sh /etc/init.d/nova-agent start
 
