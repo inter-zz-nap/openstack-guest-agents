@@ -87,19 +87,9 @@ class NetworkCommands(commands.CommandBase):
 
         system = os.uname()[0]
         if system == "Linux":
-            try:
-                system = platform.linux_distribution(None)[0]
-            except AttributeError:
-                # linux_distribution doesn't exist... try the older
-                # call
-                system = platform.dist(None)[0]
+            system = platform.linux_distribution(full_distribution_name=0)[0]
 
-            # Gentoo returns 'Gentoo Base System', so let's make that
-            # something easier to use
-            if system:
-                system = system.lower().split(' ')[0]
-            # Arch Linux returns None for platform.linux_distribution()
-            elif os.path.exists('/etc/arch-release'):
+            if not system and os.path.exists('/etc/arch-release'):
                 system = 'arch'
 
         if not system:
