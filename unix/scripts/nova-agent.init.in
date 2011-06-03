@@ -55,8 +55,9 @@ do_start() {
 }
 
 do_stop() {
-  kill `cat ${pidfile}`
+  pid=`cat ${pidfile}`
   rm -f ${pidfile}
+  kill $pid
 }
 
 SCRIPTNAME=$0
