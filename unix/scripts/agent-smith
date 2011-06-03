@@ -37,10 +37,6 @@ update-rc.d agent-smith.init remove > /dev/null 2>&1
 
     uuid=`basename ${old_agent_response}`
 
-    echo $old_agent_response >> /tmp/shit.out
-    echo $uuid >> /tmp/shit.out
-    echo `cat ${old_agent_response}` >> /tmp/shit.out
-
     xenstore-write data/guest/${uuid} "`cat ${old_agent_response}`"
 
     rm -rf /var/spool/agent-smith
