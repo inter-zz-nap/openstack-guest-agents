@@ -206,7 +206,7 @@ def _get_file_data(interface):
                 iface_data += "IPV6ADDR=%s/%s\n" % (ip, netmask)
 
                 if gateway6:
-                    iface_data += "IPV6_DEFAULTGW=%s\n" % gateway6
+                    iface_data += "IPV6_DEFAULTGW=%s%%%s\n" % (gateway6, ifname)
 
         if gateway4 or gateway6:
             for j, nameserver in enumerate(dns):
