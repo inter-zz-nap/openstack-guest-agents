@@ -44,14 +44,29 @@ cp -R ${my_dir}/${dataversdir} ${dataversdir}
 
 # Install the init file symlink
 if [ -d /etc/init.d ]; then
-    # Linux
-    rm -f /etc/init.d/nova-agent
-    ln -s ${dataversdir}/etc/nova-agent.init /etc/init.d/nova-agent
-    update-rc.d nova-agent start 20 2 3 4 5 . stop 20 0 1 6 . > /dev/null 2>&1
+    INITDIR=/etc/init.d
 elif [ -d /etc/rc.d ]; then
-    # FreeBSD
-    rm -f /etc/rc.d/nova-agent
-    ln -s ${dataversdir}/etc/nova-agent.freebsd.init /etc/rc.d/nova-agent
+    INITDIR=/etc/rc.d
+fi
+
+if [ "x${INITDIR}x" = "xx" ]; then
+    echo ERROR: Could not determine location of init directory
+    exit 1
+fi
+
+rm -f ${INITDIR}/nova-agent
+ln -s ${dataversdir}/etc/nova-agent.init ${INITDIR}/nova-agent
+
+# Enable the new init script
+if [ -x /usr/sbin/update-rc.d ]; then
+    # Debian/Ubuntu
+    update-rc.d nova-agent start 20 2 3 4 5 . stop 20 0 1 6 . > /dev/null 2>&1
+elif [ -x /sbin/chkconfig ]; then
+    # Red Hat/CentOS
+    chkconfig nova-agent on > /dev/null 2>&1
+elif [ -x /sbin/rc-update ]; then
+    # Gentoo
+    rc-update add nova-agent default > /dev/null 2>&1
 fi
 
 # Install the new nova-agent symlink
@@ -70,6 +85,6 @@ if [ -f /usr/sbin/agent-smith ] ; then
 fi
 
 # Restart (or start) the agent
-#sh /etc/init.d/nova-agent restart
+#sh ${INITDIR}/nova-agent restart
 
 exit 0
