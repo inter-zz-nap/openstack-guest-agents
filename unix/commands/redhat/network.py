@@ -219,13 +219,14 @@ def _get_file_data(interface):
         ifaces.append((ifname, iface_data))
 
     route_data = ''
-    for route in interface.get('routes', []):
+    for i, route in enumerate(interface.get('routes', [])):
         network = route['route']
         netmask = route['netmask']
         gateway = route['gateway']
 
-        route_data += "-net %s netmask %s gw %s\n" % (
-                network, netmask, gateway)
+        route_data += "ADDRESS%d=%s\n" % (i, network)
+        route_data += "NETMASK%d=%s\n" % (i, netmask)
+        route_data += "GATEWAY%d=%s\n" % (i, gateway)
 
     return (ifname_prefix, ifaces, route_data)
 
