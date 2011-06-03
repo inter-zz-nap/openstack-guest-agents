@@ -55,7 +55,20 @@ do_start() {
 }
 
 do_stop() {
-  kill `cat ${pidfile}`
+  num_tries=0
+  while [ $num_tries -lt 10 ] ; do
+    if [ ! -f ${pidfile} ] ; then
+        break
+    fi
+    if [ $num_tries -eq 0 ] ; then
+      pid=`cat ${pidfile}`
+      if [ $? -eq 0 ] ; then
+        kill $pid
+      fi
+    fi
+    num_tries=`expr $num_tries + 1`
+    sleep 1
+  done
   rm -f ${pidfile}
 }
 
