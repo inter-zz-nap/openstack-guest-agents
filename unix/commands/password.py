@@ -203,7 +203,11 @@ class PasswordCommands(commands.CommandBase):
     def keyinit_cmd(self, data):
 
         # Remote pubkey comes in as large number
-        remote_public_key = data
+
+        # Or well, it should come in as a large number.  It's possible
+        # that some legacy client code will send it as a string.  So,
+        # we'll make sure to always convert it to long.
+        remote_public_key = long(data)
 
         my_private_key = self._make_private_key()
         my_public_key = self._dh_compute_public_key(my_private_key)
