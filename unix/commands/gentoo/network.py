@@ -65,21 +65,17 @@ def configure_network(network_config, *args, **kwargs):
     pipe = subprocess.PIPE
 
     # Set hostname
-    logging.debug('executing /bin/hostname %s' % hostname)
-    p = subprocess.Popen(["/bin/hostname", hostname],
-            stdin=pipe, stdout=pipe, stderr=pipe)
-    logging.debug('waiting on pid %d' % p.pid)
-    status = os.waitpid(p.pid, 0)[1]
-    logging.debug('status = %d' % status)
-
-    if status != 0:
-        return (500, "Couldn't set hostname: %d" % status)
+    try:
+        commands.network.sethostname(hostname)
+    except Exception, e:
+        logging.error("Couldn't sethostname(): %s" % str(e))
+        return (500, "Couldn't set hostname: %s" % str(e))
 
     # Restart network
     for ifname in ifaces:
         logging.debug('executing /etc/init.d/net.%s restart' % ifname)
         p = subprocess.Popen(["/etc/init.d/net.%s" % ifname, "restart"],
-                stdin=pipe, stdout=pipe, stderr=pipe)
+                stdin=pipe, stdout=pipe, stderr=pipe, env={})
         logging.debug('waiting on pid %d' % p.pid)
         status = os.waitpid(p.pid, 0)[1]
         logging.debug('status = %d' % status)
