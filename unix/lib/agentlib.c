@@ -17,12 +17,19 @@
  *    under the License.
  */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <signal.h>
 #include <string.h>
+#if HAVE_CRYPT_H
+#include <crypt.h>
+#endif
 #include <pthread.h>
 #include <assert.h>
 #include <errno.h>
@@ -85,6 +92,30 @@ static PyObject *_agentlib_sethostname(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
+static PyObject *_agentlib_encrypt_password(PyObject *self, PyObject *args)
+{
+    char *password;
+    char *salt;
+    char *enc_pass;
+
+    if (!PyArg_ParseTuple(args, "ss", &password, &salt))
+    {
+        return NULL;
+    }
+
+    /* XXX crypt() is normally not reentrant, but since we're using this
+     * module in python and the GIL is still locked, this prevents more
+     * than 1 crypt() from happening at the same time
+     */
+    enc_pass = crypt(password, salt);
+    if (enc_pass == NULL)
+    {
+        return PyErr_Format(PyExc_SystemError,
+                "crypt() failed with errno: %d", errno);
+    }
+
+    return PyString_FromString(enc_pass);
+}
 
 PyMODINIT_FUNC AGENTLIB_PUBLIC_API initagentlib(void)
 {
@@ -94,6 +125,8 @@ PyMODINIT_FUNC AGENTLIB_PUBLIC_API initagentlib(void)
                 METH_NOARGS, "Get the agent version string" },
         { "sethostname", (PyCFunction)_agentlib_sethostname,
                 METH_VARARGS, "Set the system hostname" },
+        { "encrypt_password", (PyCFunction)_agentlib_encrypt_password,
+                METH_VARARGS, "Encrypt a password" },
         { "register", (PyCFunction)_agentlib_register,
                 METH_VARARGS, "Register an exchange plugin to run" },
         { NULL, NULL, METH_NOARGS, NULL }
