@@ -17,13 +17,19 @@
  *    under the License.
  */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <signal.h>
 #include <string.h>
+#if HAVE_CRYPT_H
 #include <crypt.h>
+#endif
 #include <pthread.h>
 #include <assert.h>
 #include <errno.h>

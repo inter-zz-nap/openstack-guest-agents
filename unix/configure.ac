@@ -89,6 +89,9 @@ if test "$PATCHELF" != "yes"; then
     exit 1
 fi
 
+# Check for certain headers
+AC_CHECK_HEADERS(crypt.h)
+
 AC_CHECK_LIB([crypt], [crypt])
 
 AC_CHECK_LIB([pthread], [pthread_create], [], [
