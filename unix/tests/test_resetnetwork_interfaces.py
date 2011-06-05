@@ -108,7 +108,7 @@ class TestInterfacesUpdates(agent_test.TestCase):
             'IPV6INIT=yes',
             'IPV6_AUTOCONF=no',
             'IPV6ADDR=2001:db8::42/96',
-            'IPV6_DEFAULTGW=2001:db8::1',
+            'IPV6_DEFAULTGW=2001:db8::1%eth0',
             'DNS1=2001:db8::2',
             'ONBOOT=yes',
             'NM_CONTROLLED=no']) + '\n')
