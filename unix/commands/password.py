@@ -173,6 +173,8 @@ class PasswordCommands(commands.CommandBase):
                     "Return code from chpasswd was %d" % ret))
 
         except Exception, e:
+            logging.error("chpasswd got an exception: %s" % str(e))
+
             p = subprocess.Popen(["/usr/bin/passwd", "root"],
                     stdin=pipe, stdout=pipe, stderr=pipe, env={})
             # Some password programs clear stdin after they display
