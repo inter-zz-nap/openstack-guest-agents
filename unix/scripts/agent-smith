@@ -38,7 +38,6 @@ add_to_startup() {
 
 rm -f /etc/init.d/agent-smith
 rm -f /etc/init.d/agent-smith.init
-rm -f /var/log/agent-smith.log
 update-rc.d agent-smith remove > /dev/null 2>&1
 update-rc.d agent-smith.init remove > /dev/null 2>&1
 chkconfig --del agent-smith > /dev/null 2>&1
@@ -66,6 +65,7 @@ chkconfig --del agent-smith.init > /dev/null 2>&1
     xenstore-write data/guest/${uuid} "`cat ${old_agent_response}`"
 
     rm -rf /var/spool/agent-smith
+    rm -f /var/log/agent-smith.log
 ) &
 
 # Remove /installer.sh from nova-agent tarball
