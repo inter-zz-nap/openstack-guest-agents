@@ -29,6 +29,28 @@ umask 077
 
 my_dir=`dirname $0`
 
+add_to_startup() {
+    if [ -f /usr/sbin/update-rc.d ] ; then
+        /usr/sbin/update-rc.d nova-agent start 20 2 3 4 5 . stop 20 0 1 6 . > /dev/null 2>&1
+    elif [ -f /sbin/chkconfig ] ; then
+        /sbin/chkconfig --add nova-agent > /dev/null 2>&1
+    elif [ -f /sbin/rc-update ] ; then
+        /sbin/rc-update add nova-agent default > /dev/null 2>&1
+    elif [ -f /etc/rc.local ] ; then
+        grep nova-agent /etc/rc.local > /dev/null 2>&1
+        ret=$?
+        if [ $ret -ne 0 ] ; then
+            if [ -d /etc/rc.d ]; then
+                echo "/etc/rc.d/nova-agent start" >> /etc/rc.local
+            elif [ -d /etc/init.d ]; then
+                echo "/etc/init.d/nova-agent start" >> /etc/rc.local
+            else
+                echo "/etc/nova-agent.init start" >> /etc/rc.local
+            fi
+        fi
+    fi
+}
+
 if [ -d $dataversdir ] ; then
 	# This version is already installed
 	echo "Version ${version} is already installed"
@@ -47,12 +69,17 @@ if [ -d /etc/init.d ]; then
     # Linux
     rm -f /etc/init.d/nova-agent
     ln -s ${dataversdir}/etc/nova-agent.init /etc/init.d/nova-agent
-    update-rc.d nova-agent start 20 2 3 4 5 . stop 20 0 1 6 . > /dev/null 2>&1
 elif [ -d /etc/rc.d ]; then
     # FreeBSD
     rm -f /etc/rc.d/nova-agent
     ln -s ${dataversdir}/etc/nova-agent.freebsd.init /etc/rc.d/nova-agent
+else
+    rm -f /etc/nova-agent.init
+    ln -s ${dataversdir}/etc/nova-agent.init /etc/nova-agent.init
 fi
+
+# Make sure we actually run the init script on boot
+add_to_startup
 
 # Install the new nova-agent symlink
 rm -f ${sbindir}/nova-agent
