@@ -209,6 +209,8 @@ class PasswordCommands(commands.CommandBase):
 
 
 def _make_salt(length):
+    """Create a salt of appropriate length"""
+
     salt_chars = 'abcdefghijklmnopqrstuvwxyz'
     salt_chars += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
     salt_chars += '0123456789./'
@@ -221,6 +223,11 @@ def _make_salt(length):
 
 
 def _create_temp_password_file(user, password, filename):
+    """Read original passwd file, generating a new temporary file.
+
+    Returns: The temporary filename
+    """
+
     with open(filename) as f:
         file_data = f.readlines()
     stat_info = os.stat(filename)
@@ -234,11 +241,19 @@ def _create_temp_password_file(user, password, filename):
             os.O_CREAT | os.O_TRUNC | os.O_WRONLY,
             stat_info.st_mode)
     f = None
+    success = False
     try:
         os.chown(tmpfile, stat_info.st_uid, stat_info.st_gid)
         f = os.fdopen(fd, 'w')
         for line in file_data:
-            (s_user, s_password, s_rest) = line.split(':', 2)
+            if line.startswith('#'):
+                f.write(line)
+                continue
+            try:
+                (s_user, s_password, s_rest) = line.split(':', 2)
+            except ValueError:
+                f.write(line)
+                continue
             if s_user != user:
                 f.write(line)
                 continue
@@ -254,33 +269,38 @@ def _create_temp_password_file(user, password, filename):
                 salt = _make_salt(2)
             enc_pass = agentlib.encrypt_password(password, salt)
             f.write("%s:%s:%s" % (s_user, enc_pass, s_rest))
-    except Exception:
-        # Close the file if it's open
-        if f:
+        f.close()
+        f = None
+        success = True
+    except Exception, e:
+        logging.error("Couldn't create temporary password file: %s" % str(e))
+        raise
+    finally:
+        if not success:
+            # Close the file if it's open
+            if f:
+                try:
+                    os.unlink(tmpfile)
+                except Exception:
+                    pass
+            # Make sure to unlink the tmpfile
             try:
                 os.unlink(tmpfile)
             except Exception:
                 pass
-        # Make sure to unlink the tmpfile
-        try:
-            os.unlink(tmpfile)
-        except Exception:
-            pass
-        # Re-raise the original exception
-        raise
-
-    f.close()
 
     return tmpfile
 
 
 def set_password(user, password):
+    """Set the password for a particular user"""
+
     INVALID = 0
     PWD_MKDB = 1
     RENAME = 2
 
     files_to_try = {'/etc/shadow': RENAME,
-            '/etc/passwd.master': PWD_MKDB}
+            '/etc/master.passwd': PWD_MKDB}
 
     for filename, ftype in files_to_try.iteritems():
         if not os.path.exists(filename):
@@ -294,10 +314,19 @@ def set_password(user, password):
             return
         if ftype == PWD_MKDB:
             pipe = subprocess.PIPE
-            p = subprocess.Popen(['/usr/sbin/pwd_mkdb'],
+            p = subprocess.Popen(['/usr/sbin/pwd_mkdb', tmpfile],
                     stdin=pipe, stdout=pipe, stderr=pipe)
-            p.communicate()
+            (stdoutdata, stderrdata) = p.communicate()
             if p.returncode != 0:
+                if stderrdata:
+                    stderrdata.strip('\n')
+                else:
+                    stderrdata = '<None>'
+                logging.error("pwd_mkdb failed: %s" % stderrdata)
+                try:
+                    os.unlink(tmpfile)
+                except Exception:
+                    pass
                 raise PasswordError(
                         (500, "Rebuilding the passwd database failed"))
             return
