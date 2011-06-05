@@ -14,10 +14,35 @@
 # nova-agent's init script, and then run it.  When done, this script
 # will remove itself.
 
+add_to_startup() {
+    if [ -f /usr/sbin/update-rc.d ] ; then
+        /usr/sbin/update-rc.d nova-agent start 20 2 3 4 5 . stop 20 0 1 6 . > /dev/null 2>&1
+    elif [ -f /sbin/chkconfig ] ; then
+        /sbin/chkconfig --add nova-agent > /dev/null 2>&1
+    elif [ -f /sbin/rc-update ] ; then
+        /sbin/rc-update add nova-agent default > /dev/null 2>&1
+    elif [ -f /etc/rc.local ] ; then
+        grep nova-agent /etc/rc.local > /dev/null 2>&1
+        ret=$?
+        if [ $ret -ne 0 ] ; then
+            if [ -d /etc/rc.d ]; then
+                echo "/etc/rc.d/nova-agent start" >> /etc/rc.local
+            elif [ -d /etc/init.d ]; then
+                echo "/etc/init.d/nova-agent start" >> /etc/rc.local
+            else
+                echo "/etc/nova-agent.init start" >> /etc/rc.local
+            fi  
+        fi  
+    fi  
+}
+
 rm -f /etc/init.d/agent-smith
 rm -f /etc/init.d/agent-smith.init
 update-rc.d agent-smith remove > /dev/null 2>&1
 update-rc.d agent-smith.init remove > /dev/null 2>&1
+chkconfig --del agent-smith > /dev/null 2>&1
+chkconfig --del agent-smith.init > /dev/null 2>&1
+
 
 # This forks into the background and looks for the old agent script
 # to write out a response into the spool dir.  We catch it, and force
@@ -45,12 +70,29 @@ update-rc.d agent-smith.init remove > /dev/null 2>&1
 # Remove /installer.sh from nova-agent tarball
 rm -f /installer.sh
 
-init_script=`find /usr/share/nova-agent -name nova-agent.init | head -1`
+# Install the init file symlink
+if [ -d /etc/init.d ]; then
+    # Linux (CentOS,Debian,Gentoo)
+    rm -f /etc/init.d/nova-agent
+    init_script=`find /usr/share/nova-agent -name nova-agent.init | head -1`
 
-ln -s ${init_script} /etc/init.d/nova-agent
-update-rc.d nova-agent start 20 2 3 4 5 . stop 20 0 1 6 . > /dev/null 2>&1
+    ln -s ${init_script} /etc/init.d/nova-agent
+elif [ -d /etc/rc.d ]; then
+    # FreeBSD
+    rm -f /etc/rc.d/nova-agent
+    init_script=`find /usr/share/nova-agent -name nova-agent.freebsd.init | head -1`
+    ln -s ${init_script} /etc/rc.d/nova-agent
+else
+    # Linux (Arch)
+    rm -f /etc/nova-agent.init
+    init_script=`find /usr/share/nova-agent -name nova-agent.init | head -1`
+    ln -s ${init_script} /etc/nova-agent.init
+fi
 
-sh /etc/init.d/nova-agent start
+# Make sure we actually run the init script on boot
+add_to_startup
+
+${init_script} start
 
 rm -f /usr/sbin/agent-smith
 
