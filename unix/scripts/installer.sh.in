@@ -33,7 +33,7 @@ add_to_startup() {
     if [ -f /usr/sbin/update-rc.d ] ; then
         /usr/sbin/update-rc.d nova-agent start 20 2 3 4 5 . stop 20 0 1 6 . > /dev/null 2>&1
     elif [ -f /sbin/chkconfig ] ; then
-        /sbin/chkconfig --add nova-agent > /dev/null 2>&1
+        /sbin/chkconfig on nova-agent > /dev/null 2>&1
     elif [ -f /sbin/rc-update ] ; then
         /sbin/rc-update add nova-agent default > /dev/null 2>&1
     elif [ -f /etc/rc.local ] ; then
@@ -95,8 +95,5 @@ if [ -f /usr/sbin/agent-smith ] ; then
     rm -rf /usr/share/agent-smith
     rm -f /var/log/agent-smith.log
 fi
-
-# Restart (or start) the agent
-#sh /etc/init.d/nova-agent restart
 
 exit 0
