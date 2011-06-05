@@ -28,6 +28,7 @@ import subprocess
 import time
 
 from Crypto.Cipher import AES
+import agentlib
 import commands
 
 # This is to support older python versions that don't have hashlib
@@ -160,36 +161,7 @@ class PasswordCommands(commands.CommandBase):
 
         if self.kwargs.get('testmode', False):
             return None
-
-        pipe = subprocess.PIPE
-
-        try:
-            p = subprocess.Popen(["/usr/sbin/chpasswd"],
-                    stdin=pipe, stdout=pipe, stderr=pipe, env={})
-            p.communicate("root:%s\n" % passwd)
-            ret = p.returncode
-            if ret:
-                raise PasswordError((500,
-                    "Return code from chpasswd was %d" % ret))
-
-        except Exception, e:
-            logging.error("chpasswd got an exception: %s" % str(e))
-
-            p = subprocess.Popen(["/usr/bin/passwd", "root"],
-                    stdin=pipe, stdout=pipe, stderr=pipe, env={})
-            # Some password programs clear stdin after they display
-            # prompts.  So, we can hack around this by sleeping.  Another
-            # Option would be to do some read()s, but we might need to
-            # poll on where to read(stderr vs stdout).  It seems stderr
-            # is the one mostly used, but can I trust that?
-            time.sleep(1)
-            p.stdin.write("%s\n" % passwd)
-            time.sleep(1)
-            p.communicate("%s\n" % passwd)
-            ret = p.returncode
-            if ret:
-                raise PasswordError((500,
-                    "Return code from passwd was %d" % ret))
+        set_password('root', passwd)
 
     def _wipe_key(self):
         """
@@ -234,3 +206,99 @@ class PasswordCommands(commands.CommandBase):
         self._wipe_key()
 
         return (0, "")
+
+
+def _make_salt(length):
+    salt_chars = 'abcdefghijklmnopqrstuvwxyz'
+    salt_chars += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    salt_chars += '0123456789./'
+
+    rand_data = os.urandom(length)
+    salt = ''
+    for c in rand_data:
+        salt += salt_chars[ord(c) % len(salt_chars)]
+    return salt
+
+
+def _create_temp_password_file(user, password, filename):
+    with open(filename) as f:
+        file_data = f.readlines()
+    stat_info = os.stat(filename)
+    tmpfile = '%s.tmp.%d' % (filename, os.getpid())
+
+    # We have to use os.open() so that we can create the file with
+    # the appropriate modes.  If we create it and set modes later,
+    # there's a small point of time where a non-root user could
+    # potentially open the file and wait for data to be written.
+    fd = os.open(tmpfile,
+            os.O_CREAT | os.O_TRUNC | os.O_WRONLY,
+            stat_info.st_mode)
+    f = None
+    try:
+        os.chown(tmpfile, stat_info.st_uid, stat_info.st_gid)
+        f = os.fdopen(fd, 'w')
+        for line in file_data:
+            (s_user, s_password, s_rest) = line.split(':', 2)
+            if s_user != user:
+                f.write(line)
+                continue
+            if s_password.startswith('$'):
+                # Format is '$ID$SALT$PASSWORD$' where ID defines the
+                # ecnryption type.  We'll re-use that, and make a salt
+                # that's the same size as the old
+                salt_data = s_password.split('$')
+                # salt_data[0] will be '', [1] will be ID, [2] will be salt
+                salt = '$%s$%s$' % (salt_data[1],
+                        _make_salt(len(salt_data[2])))
+            else:
+                salt = _make_salt(2)
+            enc_pass = agentlib.encrypt_password(password, salt)
+            f.write("%s:%s:%s" % (s_user, enc_pass, s_rest))
+    except Exception:
+        # Close the file if it's open
+        if f:
+            try:
+                os.unlink(tmpfile)
+            except Exception:
+                pass
+        # Make sure to unlink the tmpfile
+        try:
+            os.unlink(tmpfile)
+        except Exception:
+            pass
+        # Re-raise the original exception
+        raise
+
+    f.close()
+
+    return tmpfile
+
+
+def set_password(user, password):
+    INVALID = 0
+    PWD_MKDB = 1
+    RENAME = 2
+
+    files_to_try = {'/etc/shadow': RENAME,
+            '/etc/passwd.master': PWD_MKDB}
+
+    for filename, ftype in files_to_try.iteritems():
+        if not os.path.exists(filename):
+            continue
+        tmpfile = _create_temp_password_file(user, password, filename)
+        if ftype == RENAME:
+            bakfile = '/etc/shadow.bak.%d' % os.getpid()
+            os.rename(filename, bakfile)
+            os.rename(tmpfile, filename)
+            os.remove(bakfile)
+            return
+        if ftype == PWD_MKDB:
+            pipe = subprocess.PIPE
+            p = subprocess.Popen(['/usr/sbin/pwd_mkdb'],
+                    stdin=pipe, stdout=pipe, stderr=pipe)
+            p.communicate()
+            if p.returncode != 0:
+                raise PasswordError(
+                        (500, "Rebuilding the passwd database failed"))
+            return
+    raise PasswordError((500, "Unknown password file format"))

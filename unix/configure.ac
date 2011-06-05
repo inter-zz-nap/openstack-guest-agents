@@ -89,6 +89,8 @@ if test "$PATCHELF" != "yes"; then
     exit 1
 fi
 
+AC_CHECK_LIB([crypt], [crypt])
+
 AC_CHECK_LIB([pthread], [pthread_create], [], [
     missing "the pthread library"
     exit 1
