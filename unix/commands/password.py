@@ -161,6 +161,8 @@ class PasswordCommands(commands.CommandBase):
 
         if self.kwargs.get('testmode', False):
             return None
+        # Make sure there are no newlines at the end
+        passwd.strip('\n')
         set_password('root', passwd)
 
     def _wipe_key(self):
