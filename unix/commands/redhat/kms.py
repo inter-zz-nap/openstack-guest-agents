@@ -47,6 +47,9 @@ def register_with_rhn(activation_key, profile):
 
 
 def configure_up2date(domains):
+    if not isinstance(domains, list):
+        domains = [domains]
+
     domains = ['//%s/XMLRPC' % d for d in domains]
 
     serverURL = ';'.join(['https:%s' % h for h in domains])
