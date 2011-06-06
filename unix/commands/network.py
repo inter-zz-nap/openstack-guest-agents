@@ -90,6 +90,7 @@ class NetworkCommands(commands.CommandBase):
         if system == "Linux":
             system = platform.linux_distribution(full_distribution_name=0)[0]
 
+            # Arch Linux returns None for platform.linux_distribution()
             if not system and os.path.exists('/etc/arch-release'):
                 system = 'arch'
 
