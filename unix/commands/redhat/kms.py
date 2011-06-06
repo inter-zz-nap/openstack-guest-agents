@@ -36,8 +36,12 @@ def register_with_rhn(activation_key, profile):
         os.unlink(SYSTEMID_PATH)
 
     # Call rhnreg_ks
-    logging.debug('executing /usr/sbin/rhnreg_ks --activationkey <REMOVED> --profile %s --force' % profile)
-    p = subprocess.Popen(['/usr/sbin/rhnreg_ks', '--activationkey', activation_key, '--profile', profile, '--force'])
+    logging.debug('executing /usr/sbin/rhnreg_ks --activationkey <REMOVED>' + \
+            ' --profile %s --force' % profile)
+    pipe = subprocess.PIPE
+    p = subprocess.Popen(['/usr/sbin/rhnreg_ks', '--activationkey',
+            activation_key, '--profile', profile, '--force'],
+            stdin=pipe, stdout=pipe, stderr=pipe, env={})
     logging.debug('waiting on pid %d' % p.pid)
     status = os.waitpid(p.pid, 0)[1]
     logging.debug('status = %d' % status)
