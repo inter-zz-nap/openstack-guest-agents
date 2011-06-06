@@ -95,9 +95,10 @@ class NetworkCommands(commands.CommandBase):
 
         if not system:
             return None
-        else:
-            global DEFAULT_HOSTNAME
-            DEFAULT_HOSTNAME = system
+
+        system = system.lower()
+        global DEFAULT_HOSTNAME
+        DEFAULT_HOSTNAME = system
 
         return translations.get(system)
 
