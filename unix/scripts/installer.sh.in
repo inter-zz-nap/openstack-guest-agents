@@ -1,5 +1,23 @@
 #!/bin/sh
 
+# vim: tabstop=4 shiftwidth=4 softtabstop=4
+#
+#  Copyright (c) 2011 Openstack, LLC.
+#  All Rights Reserved.
+#
+#     Licensed under the Apache License, Version 2.0 (the "License"); you may
+#     not use this file except in compliance with the License. You may obtain
+#     a copy of the License at
+#
+#          http://www.apache.org/licenses/LICENSE-2.0
+#
+#     Unless required by applicable law or agreed to in writing, software
+#     distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#     WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#     License for the specific language governing permissions and limitations
+#     under the License.
+#
+
 prefix="@prefix@"
 exec_prefix="@exec_prefix@"
 sbindir="@sbindir@"
@@ -10,6 +28,28 @@ version="@PACKAGE_VERSION@"
 umask 077
 
 my_dir=`dirname $0`
+
+add_to_startup() {
+    if [ -f /usr/sbin/update-rc.d ] ; then
+        /usr/sbin/update-rc.d nova-agent start 20 2 3 4 5 . stop 20 0 1 6 . > /dev/null 2>&1
+    elif [ -f /sbin/chkconfig ] ; then
+        /sbin/chkconfig on nova-agent > /dev/null 2>&1
+    elif [ -f /sbin/rc-update ] ; then
+        /sbin/rc-update add nova-agent default > /dev/null 2>&1
+    elif [ -f /etc/rc.local ] ; then
+        grep nova-agent /etc/rc.local > /dev/null 2>&1
+        ret=$?
+        if [ $ret -ne 0 ] ; then
+            if [ -d /etc/rc.d ]; then
+                echo "/etc/rc.d/nova-agent start" >> /etc/rc.local
+            elif [ -d /etc/init.d ]; then
+                echo "/etc/init.d/nova-agent start" >> /etc/rc.local
+            else
+                echo "/etc/nova-agent.init start" >> /etc/rc.local
+            fi
+        fi
+    fi
+}
 
 if [ -d $dataversdir ] ; then
 	# This version is already installed
@@ -25,8 +65,21 @@ fi
 cp -R ${my_dir}/${dataversdir} ${dataversdir}
 
 # Install the init file symlink
-rm -f /etc/init.d/nova-agent
-ln -s ${dataversdir}/etc/nova-agent.init /etc/init.d/nova-agent
+if [ -d /etc/init.d ]; then
+    # Linux
+    rm -f /etc/init.d/nova-agent
+    ln -s ${dataversdir}/etc/nova-agent.init /etc/init.d/nova-agent
+elif [ -d /etc/rc.d ]; then
+    # FreeBSD
+    rm -f /etc/rc.d/nova-agent
+    ln -s ${dataversdir}/etc/nova-agent.freebsd.init /etc/rc.d/nova-agent
+else
+    rm -f /etc/nova-agent.init
+    ln -s ${dataversdir}/etc/nova-agent.init /etc/nova-agent.init
+fi
+
+# Make sure we actually run the init script on boot
+add_to_startup
 
 # Install the new nova-agent symlink
 rm -f ${sbindir}/nova-agent
@@ -42,8 +95,5 @@ if [ -f /usr/sbin/agent-smith ] ; then
     rm -rf /usr/share/agent-smith
     rm -f /var/log/agent-smith.log
 fi
-
-# Restart (or start) the agent
-#sh /etc/init.d/nova-agent restart
 
 exit 0

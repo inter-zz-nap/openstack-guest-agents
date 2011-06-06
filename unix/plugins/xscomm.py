@@ -23,21 +23,6 @@ JSON agent command parser main code module
 import logging
 import pyxenstore
 
-try:
-    import anyjson
-except ImportError:
-    import json
-
-    class anyjson(object):
-        """Fake anyjson module as a class"""
-
-        @staticmethod
-        def serialize(buf):
-            return json.write(buf)
-
-        @staticmethod
-        def deserialize(buf):
-            return json.read(buf)
 
 XENSTORE_REQUEST_PATH = 'data/host'
 XENSTORE_RESPONSE_PATH = 'data/guest'

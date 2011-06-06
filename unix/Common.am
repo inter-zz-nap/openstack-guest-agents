@@ -1,6 +1,7 @@
 
 datadir=${prefix}/share/${PACKAGE}/${PACKAGE_VERSION}
 sbindir=${datadir}/sbin
+etcdir=${datadir}/etc
 pluginsdir=${datadir}/plugins
 commandsdir=${datadir}/commands
 pkglibdir=${pluginsdir}

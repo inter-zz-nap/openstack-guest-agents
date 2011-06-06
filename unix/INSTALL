@@ -18,7 +18,7 @@ patchelf  -- You can find a package for it here:
              Click the number to the left of the correct package
 
 
-To build:
+To build on Linux:
 
 1) sh autogen.sh
 2) ./configure
@@ -27,4 +27,18 @@ To build:
    /usr/sbin for nova-agent)
 3) make
 4) make check
-5) make install (or make bintar)
+5) sudo make install (or sudo make bintar)
+6) ln -s /usr/share/nova-agent/<VERSION>/etc/nova-agent.init /etc/init.d/nova-agent
+7) update-rc.d to add to appropriate runlevels
+
+To build on FreeBSD:
+
+1) sh autogen.sh
+2) ./configure LDFLAGS=-L/usr/local/lib
+   (default prefix is /usr which means that the agent will be installed
+   into /usr/share/nova-agent/<version>.  A symlink will be created in
+   /usr/sbin for nova-agent)
+3) gmake
+4) gmake check
+5) sudo gmake install (or sudo make bintar)
+6) ln -s /usr/share/nova-agent/<VERSION>/etc/nova-agent.freebsd.init /etc/rc.d/nova-agent

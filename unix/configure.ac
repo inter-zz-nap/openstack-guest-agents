@@ -1,5 +1,5 @@
 AC_PREREQ([2.59])
-AC_INIT([nova-agent], [0.0.1.6], [chris.behrens@rackspace.com])
+AC_INIT([nova-agent], [0.0.1.14], [chris.behrens@rackspace.com])
 AC_CONFIG_SRCDIR([src/nova-agent.c])
 AC_CONFIG_HEADERS([include/config.h])
 
@@ -89,6 +89,11 @@ if test "$PATCHELF" != "yes"; then
     exit 1
 fi
 
+# Check for certain headers
+AC_CHECK_HEADERS(crypt.h)
+
+AC_CHECK_LIB([crypt], [crypt])
+
 AC_CHECK_LIB([pthread], [pthread_create], [], [
     missing "the pthread library"
     exit 1
@@ -110,6 +115,7 @@ AC_CONFIG_FILES([Makefile
                  tests/Makefile
                  scripts/installer.sh
                  scripts/nova-agent.init
+                 scripts/nova-agent.freebsd.init
                  ])
 
 AC_OUTPUT

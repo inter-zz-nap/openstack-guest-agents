@@ -296,7 +296,12 @@ int agent_python_test_mode(agent_python_info_t *pi)
 
     if (PyBool_Check(obj))
     {
-        ret = (obj == Py_True) ? 1 : 0;
+        /* 
+         * Apparently 'obj == Py_True' causes a compiler errors with
+         * strict warnings for some reason.. so we have to compare this
+         * way
+         */
+        ret = ((PyIntObject *)obj == &_Py_TrueStruct) ? 1 : 0;
         /* Release GIL */
         PyGILState_Release(gstate); 
         return ret;

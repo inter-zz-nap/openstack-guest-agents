@@ -23,22 +23,6 @@ Main command module.  All command classes should subclass 'command'
 import logging
 import sys
 
-try:
-    import anyjson
-except ImportError:
-    import json
-
-    class anyjson(object):
-        """Fake anyjson module as a class"""
-
-        @staticmethod
-        def serialize(buf):
-            return json.write(buf)
-
-        @staticmethod
-        def deserialize(buf):
-            return json.read(buf)
-
 
 class CommandNotFoundError(Exception):
 
@@ -112,12 +96,7 @@ class CommandBase(object):
 
     @classmethod
     def run_command(cls, cmd_name, arg):
-        try:
-            result = cls._cmds[cmd_name][0](arg)
-        except KeyError:
-            raise CommandNotFoundError(cmd_name)
-
-        return result
+        return cls.command_function(cmd_name)(arg)
 
 
 def command_add(cmd_name):

@@ -31,7 +31,9 @@ import commands
 TMP_PATH = "/var/run"
 DEST_PATH = "/usr/share/nova-agent"
 DEST_FILE = "/var/run/nova-agent.tar"
-INIT_SCRIPT = "/etc/init.d/nova-agent"
+INIT_SCRIPTS = ["/etc/init.d/nova-agent",
+        "/etc/rc.d/nova-agent",
+        "/etc/nova-agent.init"]
 
 # This is to support older python versions that don't have hashlib
 try:
@@ -151,6 +153,8 @@ class UpdateCommand(commands.CommandBase):
                 found_installer = name
                 break
 
+        pipe = subprocess.PIPE
+
         if found_installer:
             dest_path = "%s.%d" % (DEST_PATH, os.getpid())
 
@@ -164,9 +168,7 @@ class UpdateCommand(commands.CommandBase):
             os.unlink(local_filename)
 
             p = subprocess.Popen(["%s/%s" % (dest_path, found_installer)],
-                    stdin=subprocess.PIPE,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE)
+                    stdin=pipe, stdout=pipe, stderr=pipe, env={})
             p.communicate(None)
             retcode = p.returncode
 
@@ -185,11 +187,18 @@ class UpdateCommand(commands.CommandBase):
             # moving across filesystems.
             shutil.move(local_filename, dest_filename)
 
+        init_script = None
+        for script in INIT_SCRIPTS:
+            if os.path.exists(script):
+                init_script = script
+                break
+
+        if not init_script:
+            return(404, "No init script found to restart")
+
         try:
-            p = subprocess.Popen(["sh", INIT_SCRIPT, "restart"],
-                    stdin=subprocess.PIPE,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE)
+            p = subprocess.Popen(["sh", init_script, "restart"],
+                    stdin=pipe, stdout=pipe, stderr=pipe, env={})
             p.communicate(None)
             retcode = p.returncode
         except OSError, e:

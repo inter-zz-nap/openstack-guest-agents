@@ -23,18 +23,21 @@ JSON misc commands plugin
 try:
     import anyjson
 except ImportError:
-    import json
+    try:
+        import simplejson as json
+    except ImportError:
+        import json
 
     class anyjson(object):
         """Fake anyjson module as a class"""
 
         @staticmethod
         def serialize(buf):
-            return json.write(buf)
+            return json.dumps(buf)
 
         @staticmethod
         def deserialize(buf):
-            return json.read(buf)
+            return json.loads(buf)
 
 from cStringIO import StringIO
 import logging
@@ -44,17 +47,19 @@ import pyxenstore
 import re
 import time
 
+import agentlib
 import commands
 import debian.network
 import redhat.network
 import arch.network
 import suse.network
 import gentoo.network
+import freebsd.network
 
 
 XENSTORE_INTERFACE_PATH = "vm-data/networking"
 XENSTORE_HOSTNAME_PATH = "vm-data/hostname"
-DEFAULT_HOSTNAME = 'linux'
+DEFAULT_HOSTNAME = ''
 HOSTS_FILE = '/etc/hosts'
 
 
@@ -77,21 +82,13 @@ class NetworkCommands(commands.CommandBase):
                         "oracle": redhat,
                         "arch": arch,
                         "opensuse": suse,
-                        "gentoo": gentoo}
+                        "suse": suse,
+                        "gentoo": gentoo,
+                        "FreeBSD": freebsd}
 
         system = os.uname()[0]
         if system == "Linux":
-            try:
-                system = platform.linux_distribution(full_distribution_name=0)[0]
-            except AttributeError:
-                # linux_distribution doesn't exist... try the older
-                # call
-                system = platform.dist(None)[0]
-
-            # Gentoo returns 'Gentoo Base System', so let's make that
-            # something easier to use
-            if system:
-                system = system.lower().split(' ')[0]
+            system = platform.linux_distribution(full_distribution_name=0)[0]
 
             # Arch Linux returns None for platform.linux_distribution()
             if not system and os.path.exists('/etc/arch-release'):
@@ -99,11 +96,18 @@ class NetworkCommands(commands.CommandBase):
 
         if not system:
             return None
+        else:
+            global DEFAULT_HOSTNAME
+            DEFAULT_HOSTNAME = system
 
         return translations.get(system)
 
     @commands.command_add('resetnetwork')
     def resetnetwork_cmd(self, data):
+
+        os_mod = self.detect_os()
+        if not os_mod:
+            raise SystemError("Couldn't figure out my OS")
 
         xs_handle = pyxenstore.Handle()
 
@@ -127,10 +131,6 @@ class NetworkCommands(commands.CommandBase):
 
         data = {"hostname": hostname, "interfaces": interfaces}
 
-        os_mod = self.detect_os()
-        if not os_mod:
-            raise SystemError("Couldn't figure out my OS")
-
         return os_mod.network.configure_network(data)
 
 
@@ -144,7 +144,8 @@ def _get_etc_hosts(infile, interfaces, hostname):
 
             ip6s = interface.get('ip6s')
             if ip6s:
-                ips.add(ip6s[0]['address'])
+                ip6 = ip6s[0]
+                ips.add(ip6.get('address', ip6.get('ip')))
 
     outfile = StringIO()
 
@@ -200,6 +201,10 @@ def get_etc_hosts(interfaces, hostname):
         infile = StringIO()
 
     return HOSTS_FILE, _get_etc_hosts(infile, interfaces, hostname)
+
+
+def sethostname(hostname):
+    agentlib.sethostname(hostname)
 
 
 def update_files(update_files, remove_files=None, dont_rename=False):

@@ -68,19 +68,19 @@ def configure_network(network_config, *args, **kwargs):
     # Write out new files
     commands.network.update_files(update_files, remove_files)
 
-    # Set hostname
-    logging.debug('executing /bin/hostname %s' % hostname)
-    p = subprocess.Popen(["/bin/hostname", hostname])
-    logging.debug('waiting on pid %d' % p.pid)
-    status = os.waitpid(p.pid, 0)[1]
-    logging.debug('status = %d' % status)
+    pipe = subprocess.PIPE
 
-    if status != 0:
-        return (500, "Couldn't set hostname: %d" % status)
+    # Set hostname
+    try:
+        commands.network.sethostname(hostname)
+    except Exception, e:
+        logging.error("Couldn't sethostname(): %s" % str(e))
+        return (500, "Couldn't set hostname: %s" % str(e))
 
     # Restart network
     logging.debug('executing /etc/init.d/network restart')
-    p = subprocess.Popen(["/etc/init.d/network", "restart"])
+    p = subprocess.Popen(["/etc/init.d/network", "restart"],
+            stdin=pipe, stdout=pipe, stderr=pipe, env={})
     logging.debug('waiting on pid %d' % p.pid)
     status = os.waitpid(p.pid, 0)[1]
     logging.debug('status = %d' % status)
@@ -166,6 +166,8 @@ def _get_file_data(interface):
 
         if not gateway4 and not gateway6:
             raise SystemError("No gateway found for public interface")
+    else:
+        gateway4 = gateway6 = None
 
     ifnum = None
 
@@ -199,12 +201,14 @@ def _get_file_data(interface):
         if enabled != '1':
             continue
 
-        try:
-            ip = ip_info['address']
-            netmask = ip_info['netmask']
-        except KeyError:
+        ip = ip_info.get('address', ip_info.get('ip'))
+        if not ip:
             raise SystemError(
-                    "Missing IP or netmask in interface's IP list")
+                    "Missing IP in interface's IP list")
+        netmask = ip_info.get('netmask')
+        if not netmask:
+            raise SystemError(
+                    "Missing netmask in interface's IP list")
 
         gateway6 = ip_info.get('gateway', gateway6)
 
