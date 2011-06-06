@@ -84,7 +84,7 @@ class NetworkCommands(commands.CommandBase):
                         "opensuse": suse,
                         "suse": suse,
                         "gentoo": gentoo,
-                        "FreeBSD": freebsd}
+                        "freebsd": freebsd}
 
         system = os.uname()[0]
         if system == "Linux":
