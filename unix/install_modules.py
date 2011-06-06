@@ -58,10 +58,13 @@ def install_modules(system_paths, installdir):
             for d in dirs:
                 if not os.path.exists(os.path.join(destdir, d)):
                     os.mkdir(os.path.join(destdir, d))
+            d = destdir + root[len(srcdir):]
+            if not os.path.exists(d):
+                os.mkdir(d)
             for f in files:
                 # Only install .pyc or .sos, etc
                 if not f.endswith('.py'):
-                    fname = os.path.join(destdir + root[len(srcdir):], f)
+                    fname = os.path.join(d, f)
                     shutil.copy2(os.path.join(root, f), fname)
 
     def _do_install(src, destdir):
