@@ -179,6 +179,17 @@ class AgentComm(object):
 
         return self._do_request("injectfile", b64_arg)
 
+    @Commands.command_opt("kmsactivate")
+    def _kmsactivate_cmd(self, args):
+        if args:
+            arg = args[0]
+        else:
+            arg = "agent"
+        return self._do_request("kmsactivate",
+            {'activation_key': args[0],
+             'profile': args[1],
+             'domains': [args[2]]})
+
     @Commands.command_opt("help")
     def _help_cmd(self, args):
         print "Available commands:"

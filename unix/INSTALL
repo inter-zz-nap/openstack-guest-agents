@@ -34,7 +34,7 @@ To build on Linux:
 To build on FreeBSD:
 
 1) sh autogen.sh
-2) ./configure LDFLAGS=-L/usr/local/lib
+2) ./configure
    (default prefix is /usr which means that the agent will be installed
    into /usr/share/nova-agent/<version>.  A symlink will be created in
    /usr/sbin for nova-agent)

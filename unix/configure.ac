@@ -1,5 +1,5 @@
 AC_PREREQ([2.59])
-AC_INIT([nova-agent], [0.0.1.16], [chris.behrens@rackspace.com])
+AC_INIT([nova-agent], [0.0.1.18], [chris.behrens@rackspace.com])
 AC_CONFIG_SRCDIR([src/nova-agent.c])
 AC_CONFIG_HEADERS([include/config.h])
 
@@ -54,6 +54,9 @@ if test "$PYTHON_CFLAGS" = "" -a "$PYTHON_LIB" = ""; then
         AC_MSG_RESULT([adding ${PYTHON_CFLAGS} and ${PYTHON_LIB}])
     fi
 fi
+
+# Make sure to add this, so we don't need to manually add it on FreeBSD
+LDFLAGS="$LDFLAGS -L/usr/local/lib"
 
 AC_MSG_CHECKING([that the python library can be linked])
 
