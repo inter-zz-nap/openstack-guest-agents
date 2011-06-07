@@ -108,7 +108,7 @@ class UpdateCommand(commands.CommandBase):
     @commands.command_add('agentupdate')
     def update_cmd(self, data):
 
-        if isinstance(data, str) or isinstance(data, unicode):
+        if isinstance(data, basestring):
             (url, md5sum) = data.split(',', 1)
         elif isinstance(data, dict):
             try:

@@ -70,7 +70,7 @@ bintar: all
 	@chmod 700 ${FULLBINTARDIR}/${prefix}/sbin/agent-smith
 	@chmod 700 ${FULLBINTARDIR}/installer.sh
 	@chmod 700 ${FULLBINTARDIR}/${etcdir}/*.init
-	@chown -R root:root ${FULLBINTARDIR}
+	@chown -R 0:0 ${FULLBINTARDIR}
 # agent-smith requires that we don't have a subdir in the tar
 # once agent-smith is dead, we can use this
 #	@tar -czf $(top_srcdir)/${BINTARNAME} -C $(CURDIR) ${BINTARDIR}
