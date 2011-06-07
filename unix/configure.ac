@@ -55,6 +55,9 @@ if test "$PYTHON_CFLAGS" = "" -a "$PYTHON_LIB" = ""; then
     fi
 fi
 
+# Make sure to add this, so we don't need to manually add it on FreeBSD
+LDFLAGS="$LDFLAGS -L/usr/local/lib"
+
 AC_MSG_CHECKING([that the python library can be linked])
 
 SAVE_CFLAGS=$CFLAGS
