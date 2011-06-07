@@ -21,6 +21,14 @@ add_to_startup() {
         /sbin/chkconfig --add nova-agent > /dev/null 2>&1
     elif [ -f /sbin/rc-update ] ; then
         /sbin/rc-update add nova-agent default > /dev/null 2>&1
+    elif [ -f /etc/arch-release ] ; then
+        # Arch is a hybrid BSD and SysV style init system. We just need to
+        # install a SysV style script into /etc/rc.d, but then update
+        # /etc/rc.conf to enable it
+        grep -q '^DAEMONS=.*nova-agent' /etc/rc.conf
+        if [ $? -ne 0 ]; then
+            sed -i.backup 's/^DAEMONS=(\(.*\))/DAEMONS=(nova-agent \1)/' /etc/rc.conf
+        fi
     elif [ -f /etc/rc.local ] ; then
         grep nova-agent /etc/rc.local > /dev/null 2>&1
         ret=$?
