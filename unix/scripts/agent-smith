@@ -18,7 +18,7 @@ add_to_startup() {
     if [ -f /usr/sbin/update-rc.d ] ; then
         /usr/sbin/update-rc.d nova-agent start 20 2 3 4 5 . stop 20 0 1 6 . > /dev/null 2>&1
     elif [ -f /sbin/chkconfig ] ; then
-        /sbin/chkconfig on nova-agent > /dev/null 2>&1
+        /sbin/chkconfig nova-agent on > /dev/null 2>&1
     elif [ -f /sbin/rc-update ] ; then
         /sbin/rc-update add nova-agent default > /dev/null 2>&1
     elif [ -f /etc/arch-release ] ; then
@@ -57,8 +57,8 @@ rm -f /etc/init.d/agent-smith
 rm -f /etc/init.d/agent-smith.init
 update-rc.d agent-smith remove > /dev/null 2>&1
 update-rc.d agent-smith.init remove > /dev/null 2>&1
-chkconfig off agent-smith > /dev/null 2>&1
-chkconfig off agent-smith.init > /dev/null 2>&1
+chkconfig agent-smith --del > /dev/null 2>&1
+chkconfig agent-smith.init --del > /dev/null 2>&1
 
 
 # This forks into the background and looks for the old agent script
