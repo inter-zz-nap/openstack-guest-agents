@@ -65,7 +65,6 @@ def install_modules(system_paths, installdir):
                 # Only install .pyc or .sos, etc
                 if not f.endswith('.py'):
                     fname = os.path.join(d, f)
-                    print "Installing %s" % fname
                     shutil.copy2(os.path.join(root, f), fname)
 
     def _do_install(src, destdir, subdirs_only=False):
