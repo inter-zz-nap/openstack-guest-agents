@@ -48,8 +48,8 @@ rm -f /etc/init.d/agent-smith
 rm -f /etc/init.d/agent-smith.init
 update-rc.d agent-smith remove > /dev/null 2>&1
 update-rc.d agent-smith.init remove > /dev/null 2>&1
-chkconfig --del agent-smith > /dev/null 2>&1
-chkconfig --del agent-smith.init > /dev/null 2>&1
+chkconfig off agent-smith > /dev/null 2>&1
+chkconfig off agent-smith.init > /dev/null 2>&1
 
 
 # This forks into the background and looks for the old agent script
