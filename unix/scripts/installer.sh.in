@@ -86,6 +86,9 @@ if [ -d /etc/init.d ]; then
     # Linux
     rm -f /etc/init.d/nova-agent
     ln -s ${dataversdir}/etc/nova-agent.init /etc/init.d/nova-agent
+elif [ -f /etc/arch-release ] ; then
+    rm -f /etc/rc.d/nova-agent
+    ln -s ${dataversdir}/etc/nova-agent.init /etc/rc.d/nova-agent
 elif [ -d /etc/rc.d ]; then
     # FreeBSD
     rm -f /etc/rc.d/nova-agent

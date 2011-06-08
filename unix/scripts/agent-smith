@@ -95,6 +95,10 @@ if [ -d /etc/init.d ]; then
     init_script=`find /usr/share/nova-agent -name nova-agent.init | head -1`
 
     ln -s ${init_script} /etc/init.d/nova-agent
+elif [ -f /etc/arch-release ] ; then
+    rm -f /etc/rc.d/nova-agent
+    init_script=`find /usr/share/nova-agent -name nova-agent.init | head -1`
+    ln -s ${init_script} /etc/rc.d/nova-agent
 elif [ -d /etc/rc.d ]; then
     # FreeBSD
     rm -f /etc/rc.d/nova-agent
