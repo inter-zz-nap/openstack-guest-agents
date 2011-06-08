@@ -127,6 +127,9 @@ def install_modules(system_paths, installdir):
                             continue
                         z.extract(f, installdir)
                     z.close()
+            elif base_dir.endswith('site-packages'):
+                _do_install(os.path.join(base_dir, rest_dir),
+                        installdir + '/site-packages')
             else:
                 _do_install(os.path.join(base_dir, rest_dir),
                         installdir)
@@ -148,8 +151,11 @@ if __name__ == "__main__":
 
     if not os.path.exists(installdir):
         os.makedirs(installdir)
-    elif not os.path.isdir(installdir):
-        print "Error: '%s' exists and is not a directory" % installdir
+    if not os.path.exists(installdir + '/site-packages'):
+        os.mkdir(installdir + '/site-packages')
+    if not os.path.isdir(installdir + '/site-packages'):
+        print "Error: '%s/site-packages' exists and is not a directory" % \ 
+                installdir
         sys.exit(1)
 
     install_modules(sys_paths, installdir)
