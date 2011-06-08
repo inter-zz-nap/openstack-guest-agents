@@ -22,14 +22,15 @@ import os
 import shutil
 import re
 import sys
+import zipfile
 
 import commands.command_list
 
 # Other modules here that get lazy loaded.. :-/
+import bz2
+import gzip
 import httplib
 import zlib
-import gzip
-import bz2
 # Make sure we get at least one of these
 try:
     import anyjson
@@ -113,8 +114,18 @@ def install_modules(system_paths, installdir):
             if '/' in rest_dir:
                 rest_dir = rest_dir.split('/', 1)[0]
             if re.match('.*\.egg', rest_dir):
-                _do_install(os.path.join(base_dir, rest_dir),
-                        installdir, True)
+                full_srcdir = os.path.join(base_dir, rest_dir)
+                if os.path.isdir(full_srcdir):
+                    _do_install(os.path.join(base_dir, rest_dir),
+                            installdir, True)
+                else:
+                    with zipfile.ZipFile(full_srcdir) as z:
+                        files = z.infolist()
+                        for f in files:
+                            if f.filename == "EGG-INFO" or \
+                                    f.filename.startswith("EGG-INFO/"):
+                                continue
+                            z.extract(f, installdir)
             else:
                 _do_install(os.path.join(base_dir, rest_dir),
                         installdir)
