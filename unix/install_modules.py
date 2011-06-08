@@ -119,13 +119,14 @@ def install_modules(system_paths, installdir):
                     _do_install(os.path.join(base_dir, rest_dir),
                             installdir, True)
                 else:
-                    with zipfile.ZipFile(full_srcdir) as z:
-                        files = z.infolist()
-                        for f in files:
-                            if f.filename == "EGG-INFO" or \
-                                    f.filename.startswith("EGG-INFO/"):
-                                continue
-                            z.extract(f, installdir)
+                    z = zipfile.ZipFile(full_srcdir)
+                    files = z.infolist()
+                    for f in files:
+                        if f.filename == "EGG-INFO" or \
+                                f.filename.startswith("EGG-INFO/"):
+                            continue
+                        z.extract(f, installdir)
+                    z.close()
             else:
                 _do_install(os.path.join(base_dir, rest_dir),
                         installdir)
