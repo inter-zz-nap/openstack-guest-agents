@@ -65,26 +65,26 @@ def install_modules(system_paths, installdir):
                 # Only install .pyc or .sos, etc
                 if not f.endswith('.py'):
                     fname = os.path.join(d, f)
+                    print "Installing %s" % fname
                     shutil.copy2(os.path.join(root, f), fname)
 
-    def _do_install(src, destdir):
+    def _do_install(src, destdir, subdirs_only=False):
         print "Installing %s" % src
         if os.path.isdir(src):
-            subdir = src.rsplit('/', 1)[1]
-            copy_tree(src, os.path.join(destdir, subdir))
+            if not subdirs_only:
+                subdir = src.rsplit('/', 1)[1]
+                copy_tree(src, os.path.join(destdir, subdir))
+                return
+            for d in os.listdir(src):
+                if d == "EGG-INFO":
+                    continue
+                path = os.path.join(src, d)
+                if os.path.isdir(path):
+                    copy_tree(path, os.path.join(destdir, d))
+                else:
+                    shutil.copy2(path, destdir)
         else:
             shutil.copy2(src, destdir)
-
-    # Install any .pth files from (site|dist)-packages for eggs
-    for x in system_paths:
-        if os.path.isdir(x) and (
-                x.endswith('site-packages') or
-                x.endswith('dist-packages')):
-            files = os.listdir(x)
-            for file in files:
-                if re.match('.*\.pth$', file):
-                    _do_install(os.path.join(x, file),
-                            installdir + '/' + x[-13:])
 
     for modname in sys.modules:
 
@@ -113,12 +113,9 @@ def install_modules(system_paths, installdir):
             rest_dir = mod_fn[len(base_dir) + 1:]
             if '/' in rest_dir:
                 rest_dir = rest_dir.split('/', 1)[0]
-            if base_dir.endswith('site-packages'):
+            if re.match('.*\.egg', rest_dir):
                 _do_install(os.path.join(base_dir, rest_dir),
-                        installdir + '/site-packages')
-            elif base_dir.endswith('dist-packages'):
-                _do_install(os.path.join(base_dir, rest_dir),
-                        installdir + '/dist-packages')
+                        installdir, True)
             else:
                 _do_install(os.path.join(base_dir, rest_dir),
                         installdir)
@@ -140,17 +137,8 @@ if __name__ == "__main__":
 
     if not os.path.exists(installdir):
         os.makedirs(installdir)
-    if not os.path.exists(installdir + '/site-packages'):
-        os.mkdir(installdir + '/site-packages')
-    if not os.path.exists(installdir + '/dist-packages'):
-        os.mkdir(installdir + '/dist-packages')
-    if not os.path.isdir(installdir + '/site-packages'):
-        print "Error: '%s/site-packages' exists and is not a directory" % \
-                installdir
-        sys.exit(1)
-    if not os.path.isdir(installdir + '/dist-packages'):
-        print "Error: '%s/dist-packages' exists and is not a directory" % \
-                installdir
+    elif not os.path.isdir(installdir):
+        print "Error: '%s' exists and is not a directory" % installdir
         sys.exit(1)
 
     install_modules(sys_paths, installdir)

@@ -33,13 +33,19 @@ FULLBINTARDIR = $(top_srcdir)/${BINTARDIR}
 check-local:
 	@${PYTHON_VER} run_tests.py
 
-install-exec-local:
+install-exec-local: install-modules install-libs patch-binary
 	rm -f ${DESTDIR}${datadir}/../nova-agent.py
 	ln -s ${datadir}/nova-agent.py ${DESTDIR}${datadir}/../nova-agent.py
-	@$(PYTHON_VER) $(top_srcdir)/install_modules.py ${DESTDIR}$(modulesdir)
-	@$(PYTHON_VER) $(top_srcdir)/install_libs.py ${DESTDIR}$(sbindir)/nova-agent $(DESTDIR)${datadir} ${DESTDIR}/$(libdir)
-	@$(PYTHON_VER) $(top_srcdir)/patch_binary.py ${DESTDIR}${sbindir}/nova-agent ${DESTDIR} $(libdir)
 #	@$(PYTHON_VER) $(top_srcdir)/patch_libs.py ${DESTDIR}${datadir} $(libdir)
+
+install-modules:
+	@$(PYTHON_VER) $(top_srcdir)/install_modules.py ${DESTDIR}$(modulesdir)
+
+install-libs:
+	@$(PYTHON_VER) $(top_srcdir)/install_libs.py ${DESTDIR}$(sbindir)/nova-agent $(DESTDIR)${datadir} ${DESTDIR}/$(libdir)
+
+patch-binary:
+	@$(PYTHON_VER) $(top_srcdir)/patch_binary.py ${DESTDIR}${sbindir}/nova-agent ${DESTDIR} $(libdir)
 
 distclean-local:
 	rm -f $(top_srcdir)/{configure,configure.in}

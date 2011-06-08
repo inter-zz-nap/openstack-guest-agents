@@ -75,8 +75,6 @@ SCRIPTNAME=$0
 
 case "$1" in
   start)
-    LD_LIBRARY_PATH="${reallibdir}"
-    export LD_LIBRARY_PATH
     do_start
     ;;
   stop)
