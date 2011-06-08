@@ -30,10 +30,16 @@
 # pidfile: /var/run/nova-agent.pid
 #
 
-# PROVIDE: nova-agent
+# PROVIDE: novaagent
 # BEFORE: netif
 # REQUIRE: FILESYSTEMS
 
+. /etc/rc.subr
+
+name="novaagent"
+rcvar="nova_agent_enable"
+start_cmd="novaagent_start"
+stop_cmd="novaagent_stop"
 
 prefix="@prefix@"
 exec_prefix="@exec_prefix@"
@@ -47,13 +53,13 @@ pidfile="/var/run/nova-agent.pid"
 logfile="/var/log/nova-agent.log"
 loglevel="info"
 
-do_start() {
+novaagent_start() {
   LD_LIBRARY_PATH="${reallibdir}"
   export LD_LIBRARY_PATH
   ${nova_agent} -q -p ${pidfile} -o ${logfile} -l ${loglevel} ${agent_config}
 }
 
-do_stop() {
+novaagent_stop() {
   num_tries=0
   while [ $num_tries -lt 10 ] ; do
     if [ ! -f ${pidfile} ] ; then
@@ -71,22 +77,5 @@ do_stop() {
   rm -f ${pidfile}
 }
 
-SCRIPTNAME=$0
-
-case "$1" in
-  start)
-    do_start
-    ;;
-  stop)
-    do_stop
-    ;;
-  restart)
-    do_stop
-    do_start
-    ;;
-  *)
-    echo "Usage: $SCRIPTNAME {start|stop|restart}" >&2
-    exit 3
-    ;;
-esac
-
+load_rc_config $name
+run_rc_command "$1"

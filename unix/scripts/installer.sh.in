@@ -41,13 +41,22 @@ add_to_startup() {
         # install a SysV style script into /etc/rc.d, but then update
         # /etc/rc.conf to enable it
         grep -q '^DAEMONS=.*nova-agent' /etc/rc.conf
-        if [ $? -ne 0 ]; then
+        if [ $? -ne 0 ] ; then
             sed -i.backup 's/^DAEMONS=(\(.*\))/DAEMONS=(nova-agent \1)/' /etc/rc.conf
         fi
+    elif [ `uname -s` == 'FreeBSD' ] ; then
+        # FreeBSD needs nova_agent_enable="YES" added to rc.conf
+        egrep -q '^nova-agent_enable=.*YES' /etc/rc.conf
+        if [ $? -ne 0 ] ; then
+            sed -i.backup 's/^.*nova_agent.*//' /etc/rc.conf
+            cat >> /etc/rc.conf << EOF
+# DO NOT DISABLE nova_agent or you will lose some functionality
+nova_agent_enable="YES"
+EOF
+        fi
     elif [ -f /etc/rc.local ] ; then
-        grep nova-agent /etc/rc.local > /dev/null 2>&1
-        ret=$?
-        if [ $ret -ne 0 ] ; then
+        grep -q nova-agent /etc/rc.local
+        if [ $? -ne 0 ] ; then
             if [ -d /etc/rc.d ]; then
                 echo "/etc/rc.d/nova-agent start" >> /etc/rc.local
             elif [ -d /etc/init.d ]; then
@@ -60,9 +69,9 @@ add_to_startup() {
 }
 
 if [ -d $dataversdir ] ; then
-	# This version is already installed
-	echo "Version ${version} is already installed"
-	exit 1
+    # This version is already installed
+    echo "Version ${version} is already installed"
+    exit 1
 fi
 
 if [ ! -d $datadir ] ; then

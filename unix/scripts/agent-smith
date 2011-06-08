@@ -18,30 +18,38 @@ add_to_startup() {
     if [ -f /usr/sbin/update-rc.d ] ; then
         /usr/sbin/update-rc.d nova-agent start 20 2 3 4 5 . stop 20 0 1 6 . > /dev/null 2>&1
     elif [ -f /sbin/chkconfig ] ; then
-        /sbin/chkconfig --add nova-agent > /dev/null 2>&1
+        /sbin/chkconfig on nova-agent > /dev/null 2>&1
     elif [ -f /sbin/rc-update ] ; then
         /sbin/rc-update add nova-agent default > /dev/null 2>&1
     elif [ -f /etc/arch-release ] ; then
         # Arch is a hybrid BSD and SysV style init system. We just need to
         # install a SysV style script into /etc/rc.d, but then update
-        # /etc/rc.conf to enable it
-        grep -q '^DAEMONS=.*nova-agent' /etc/rc.conf
-        if [ $? -ne 0 ]; then
-            sed -i.backup 's/^DAEMONS=(\(.*\))/DAEMONS=(nova-agent \1)/' /etc/rc.conf
-        fi
+        # /etc/rc.conf to enable it 
+        grep -q '^DAEMONS=.*nova-agent' /etc/rc.conf 
+        if [ $? -ne 0 ] ; then
+            sed -i.backup 's/^DAEMONS=(\(.*\))/DAEMONS=(nova-agent \1)/' /etc/rc.conf       
+        fi  
+    elif [ `uname -s` == 'FreeBSD' ] ; then 
+        # FreeBSD needs nova_agent_enable="YES" added to rc.conf
+        egrep -q '^nova-agent_enable=.*YES' /etc/rc.conf        if [ $? -ne 0 ] ; then
+            sed -i.backup 's/^.*nova_agent.*//' /etc/rc.conf
+            cat >> /etc/rc.conf << EOF 
+# DO NOT DISABLE nova_agent or you will lose some functionality
+nova_agent_enable="YES"
+EOF
+        fi      
     elif [ -f /etc/rc.local ] ; then
-        grep nova-agent /etc/rc.local > /dev/null 2>&1
-        ret=$?
-        if [ $ret -ne 0 ] ; then
+        grep -q nova-agent /etc/rc.local
+        if [ $? -ne 0 ] ; then
             if [ -d /etc/rc.d ]; then
                 echo "/etc/rc.d/nova-agent start" >> /etc/rc.local
             elif [ -d /etc/init.d ]; then
                 echo "/etc/init.d/nova-agent start" >> /etc/rc.local
-            else
+            else 
                 echo "/etc/nova-agent.init start" >> /etc/rc.local
-            fi  
-        fi  
-    fi  
+            fi      
+        fi      
+    fi              
 }
 
 rm -f /etc/init.d/agent-smith
