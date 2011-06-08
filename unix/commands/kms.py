@@ -42,17 +42,7 @@ class ActivateCommand(commands.CommandBase):
 
         system = os.uname()[0]
         if system == "Linux":
-            try:
-                system = platform.linux_distribution(full_distribution_name=0)[0]
-            except AttributeError:
-                # linux_distribution doesn't exist... try the older
-                # call
-                system = platform.dist(None)[0]
-
-            # Gentoo returns 'Gentoo Base System', so let's make that
-            # something easier to use
-            if system:
-                system = system.lower().split(' ')[0]
+            system = platform.linux_distribution(full_distribution_name=0)[0]
 
             # Arch Linux returns None for platform.linux_distribution()
             if not system and os.path.exists('/etc/arch-release'):
@@ -61,6 +51,10 @@ class ActivateCommand(commands.CommandBase):
         if not system:
             return None
 
+        system = system.lower()
+        global DEFAULT_HOSTNAME
+        DEFAULT_HOSTNAME = system
+
         return translations.get(system)
 
     @commands.command_add('kmsactivate')
@@ -68,6 +62,6 @@ class ActivateCommand(commands.CommandBase):
 
         os_mod = self.detect_os()
         if not os_mod:
-            raise SystemError("Couldn't figure out my OS")
+            raise SystemError("KMS not supported on this OS")
 
         return os_mod.kms.kms_activate(data)

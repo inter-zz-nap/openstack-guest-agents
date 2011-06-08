@@ -22,14 +22,15 @@ import os
 import shutil
 import re
 import sys
+import zipfile
 
 import commands.command_list
 
 # Other modules here that get lazy loaded.. :-/
+import bz2
+import gzip
 import httplib
 import zlib
-import gzip
-import bz2
 # Make sure we get at least one of these
 try:
     import anyjson
@@ -67,24 +68,23 @@ def install_modules(system_paths, installdir):
                     fname = os.path.join(d, f)
                     shutil.copy2(os.path.join(root, f), fname)
 
-    def _do_install(src, destdir):
+    def _do_install(src, destdir, subdirs_only=False):
         print "Installing %s" % src
         if os.path.isdir(src):
-            subdir = src.rsplit('/', 1)[1]
-            copy_tree(src, os.path.join(destdir, subdir))
+            if not subdirs_only:
+                subdir = src.rsplit('/', 1)[1]
+                copy_tree(src, os.path.join(destdir, subdir))
+                return
+            for d in os.listdir(src):
+                if d == "EGG-INFO":
+                    continue
+                path = os.path.join(src, d)
+                if os.path.isdir(path):
+                    copy_tree(path, os.path.join(destdir, d))
+                else:
+                    shutil.copy2(path, destdir)
         else:
             shutil.copy2(src, destdir)
-
-    # Install any .pth files from (site|dist)-packages for eggs
-    for x in system_paths:
-        if os.path.isdir(x) and (
-                x.endswith('site-packages') or
-                x.endswith('dist-packages')):
-            files = os.listdir(x)
-            for file in files:
-                if re.match('.*\.pth$', file):
-                    _do_install(os.path.join(x, file),
-                            installdir + '/' + x[-13:])
 
     for modname in sys.modules:
 
@@ -114,14 +114,26 @@ def install_modules(system_paths, installdir):
             if '/' in rest_dir:
                 rest_dir = rest_dir.split('/', 1)[0]
             if base_dir.endswith('site-packages'):
-                _do_install(os.path.join(base_dir, rest_dir),
-                        installdir + '/site-packages')
-            elif base_dir.endswith('dist-packages'):
-                _do_install(os.path.join(base_dir, rest_dir),
-                        installdir + '/dist-packages')
+                idir = installdir + '/site-packages'
+            else:
+                idir = installdir
+            if re.match('.*\.egg', rest_dir):
+                full_srcdir = os.path.join(base_dir, rest_dir)
+                if os.path.isdir(full_srcdir):
+                    _do_install(os.path.join(base_dir, rest_dir),
+                            idir, True)
+                else:
+                    z = zipfile.ZipFile(full_srcdir)
+                    files = z.infolist()
+                    for f in files:
+                        if f.filename == "EGG-INFO" or \
+                                f.filename.startswith("EGG-INFO/"):
+                            continue
+                        z.extract(f, idir)
+                    z.close()
             else:
                 _do_install(os.path.join(base_dir, rest_dir),
-                        installdir)
+                        idir)
 
 if __name__ == "__main__":
     prog_name = sys.argv[0]
@@ -142,14 +154,8 @@ if __name__ == "__main__":
         os.makedirs(installdir)
     if not os.path.exists(installdir + '/site-packages'):
         os.mkdir(installdir + '/site-packages')
-    if not os.path.exists(installdir + '/dist-packages'):
-        os.mkdir(installdir + '/dist-packages')
     if not os.path.isdir(installdir + '/site-packages'):
         print "Error: '%s/site-packages' exists and is not a directory" % \
-                installdir
-        sys.exit(1)
-    if not os.path.isdir(installdir + '/dist-packages'):
-        print "Error: '%s/dist-packages' exists and is not a directory" % \
                 installdir
         sys.exit(1)
 
