@@ -113,11 +113,15 @@ def install_modules(system_paths, installdir):
             rest_dir = mod_fn[len(base_dir) + 1:]
             if '/' in rest_dir:
                 rest_dir = rest_dir.split('/', 1)[0]
+            if base_dir.endswith('site-packages'):
+                idir = installdir + '/site-packages'
+            else:
+                idir = installdir
             if re.match('.*\.egg', rest_dir):
                 full_srcdir = os.path.join(base_dir, rest_dir)
                 if os.path.isdir(full_srcdir):
                     _do_install(os.path.join(base_dir, rest_dir),
-                            installdir, True)
+                            idir, True)
                 else:
                     z = zipfile.ZipFile(full_srcdir)
                     files = z.infolist()
@@ -125,14 +129,11 @@ def install_modules(system_paths, installdir):
                         if f.filename == "EGG-INFO" or \
                                 f.filename.startswith("EGG-INFO/"):
                             continue
-                        z.extract(f, installdir)
+                        z.extract(f, idir)
                     z.close()
-            elif base_dir.endswith('site-packages'):
-                _do_install(os.path.join(base_dir, rest_dir),
-                        installdir + '/site-packages')
             else:
                 _do_install(os.path.join(base_dir, rest_dir),
-                        installdir)
+                        idir)
 
 if __name__ == "__main__":
     prog_name = sys.argv[0]
