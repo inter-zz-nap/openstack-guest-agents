@@ -154,7 +154,7 @@ if __name__ == "__main__":
     if not os.path.exists(installdir + '/site-packages'):
         os.mkdir(installdir + '/site-packages')
     if not os.path.isdir(installdir + '/site-packages'):
-        print "Error: '%s/site-packages' exists and is not a directory" % \ 
+        print "Error: '%s/site-packages' exists and is not a directory" % \
                 installdir
         sys.exit(1)
 
