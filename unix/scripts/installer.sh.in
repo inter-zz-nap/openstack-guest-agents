@@ -46,7 +46,7 @@ add_to_startup() {
         fi
     elif [ `uname -s` == 'FreeBSD' ] ; then
         # FreeBSD needs nova_agent_enable="YES" added to rc.conf
-        egrep -q '^nova-agent_enable=.*YES' /etc/rc.conf
+        egrep -q '^nova_agent_enable=.*YES' /etc/rc.conf
         if [ $? -ne 0 ] ; then
             sed -i.backup 's/^.*nova_agent.*//' /etc/rc.conf
             cat >> /etc/rc.conf << EOF
