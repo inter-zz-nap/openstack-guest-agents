@@ -53,12 +53,12 @@ EOF
     fi              
 }
 
-rm -f /etc/init.d/agent-smith
-rm -f /etc/init.d/agent-smith.init
 update-rc.d agent-smith remove > /dev/null 2>&1
 update-rc.d agent-smith.init remove > /dev/null 2>&1
 chkconfig agent-smith --del > /dev/null 2>&1
 chkconfig agent-smith.init --del > /dev/null 2>&1
+rm -f /etc/init.d/agent-smith
+rm -f /etc/init.d/agent-smith.init
 
 
 # This forks into the background and looks for the old agent script
