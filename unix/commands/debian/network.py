@@ -233,6 +233,7 @@ def _get_file_data(interfaces):
                 raise SystemError("No DNS found for public interface")
         else:
             gateway4 = gateway6 = None
+            dns = None
 
         ifname_suffix_num = 0
 
