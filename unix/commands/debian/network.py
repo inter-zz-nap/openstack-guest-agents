@@ -71,9 +71,6 @@ def configure_network(network_config):
     filepath, data = commands.network.get_etc_hosts(interfaces, hostname)
     update_files[filepath] = data
 
-    # Write out new files
-    commands.network.update_files(update_files)
-
     pipe = subprocess.PIPE
 
     # Set hostname
@@ -83,13 +80,47 @@ def configure_network(network_config):
         logging.error("Couldn't sethostname(): %s" % str(e))
         return (500, "Couldn't set hostname: %s" % str(e))
 
+    #
+    # So, debian is kinda dumb in how it manages its interfaces.
+    # A 'networking restart' doesn't actually down all interfaces that
+    # might have been removed from the interfaces file.  So, we first
+    # need to 'ifdown' everything we find.
+    #
+    # Now it's possible we'll fail to update files.. and if we do,
+    # we need to try to bring the networking back up, anyway.  So,
+    # no matter what, after we run 'ifdown' on everything, we need to
+    # restart networking.
+    #
+    # Also: restart networking doesn't always seem to bring all
+    # interfaces up, either!  Argh. :)  So, we also need to run 'ifup'
+    # on everything.
+    #
+    # Now, ifdown and ifup can fail when it shouldn't be dealing with
+    # a certain interface.. so we have to ignore all errors from them.
+    #
+
+    _run_on_interfaces("/sbin/ifdown")
+
+    files_update_error = None
+    # Write out new files
+    try:
+        commands.network.update_files(update_files)
+    except Exception, e:
+        files_update_error = e
+
     # Restart network
     logging.debug('executing /etc/init.d/networking restart')
     p = subprocess.Popen(["/etc/init.d/networking", "restart"],
             stdin=pipe, stdout=pipe, stderr=pipe, env={})
     logging.debug('waiting on pid %d' % p.pid)
-    status = os.waitpid(p.pid, 0)[1]
-    logging.debug('status = %d' % status)
+    p.communicate()
+    status = p.returncode
+
+    # Bring back up what we can
+    _run_on_interfaces("/sbin/ifup")
+
+    if files_update_error:
+        raise files_update_error
 
     if status != 0:
         return (500, "Couldn't restart network: %d" % status)
@@ -114,6 +145,44 @@ def _get_resolv_conf(interfaces):
         return ''
 
     return '# Automatically generated, do not edit\n' + resolv_data
+
+
+def _get_current_interfaces():
+    """Get the current list of interfaces ignoring lo"""
+
+    if not os.path.exists(INTERFACE_FILE):
+        return []
+
+    interfaces = []
+    with open(INTERFACE_FILE, 'r') as f:
+        for line in f.readlines():
+            line = line.strip().lstrip()
+            if line.startswith('iface') or \
+                    line.startswith('auto') or \
+                    line.startswith('allow-hotplug'):
+                interface = line.split()[1]
+                if not interface.startswith('lo'):
+                    interfaces.append(interface)
+    return set(interfaces)
+
+
+def _run_on_interfaces(cmd):
+    """For all interfaces found, run a command with the interface as an
+    argument
+    """
+
+    interfaces = _get_current_interfaces()
+    pipe = subprocess.PIPE
+    for i in interfaces:
+        logging.debug('executing "%s %s"' % (cmd, i))
+        p = subprocess.Popen([cmd, i],
+            stdin=pipe, stdout=pipe, stderr=pipe, env={})
+        logging.debug('waiting on pid %d' % p.pid)
+        p.communicate()
+        status = p.returncode
+        if status != 0:
+            logging.debug('ignoring failure of "%s %s": %d' % (
+                cmd, i, status))
 
 
 def _get_file_data(interfaces):
