@@ -113,8 +113,10 @@ def configure_network(network_config):
     p = subprocess.Popen(["/etc/init.d/networking", "restart"],
             stdin=pipe, stdout=pipe, stderr=pipe, env={})
     logging.debug('waiting on pid %d' % p.pid)
-    p.communicate()
+    p.wait()
     status = p.returncode
+    logging.debug('"/etc/init.d/networking restart" exited with code %d' %
+            status)
 
     # Bring back up what we can
     _run_on_interfaces("/sbin/ifup")
@@ -178,10 +180,9 @@ def _run_on_interfaces(cmd):
         p = subprocess.Popen([cmd, i],
             stdin=pipe, stdout=pipe, stderr=pipe, env={})
         logging.debug('waiting on pid %d' % p.pid)
-        p.communicate()
+        p.wait()
         status = p.returncode
-        if status != 0:
-            logging.debug('ignoring failure of "%s %s": %d' % (
+        logging.debug('"%s %s" exited with code %d' % (
                 cmd, i, status))
 
 
