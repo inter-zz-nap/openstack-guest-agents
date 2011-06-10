@@ -31,7 +31,8 @@ class TestKMSUpdates(unittest.TestCase):
 
     def test_redhat_up2date(self):
         """Test updating up2date config for Red Hat"""
-        outfiles = commands.redhat.kms.configure_up2date(['proxy1.example.com', 'proxy2.example.com'])
+        outfiles = commands.redhat.kms.configure_up2date([
+            'proxy1.example.com', 'proxy2.example.com'])
         self.assertEqual(outfiles['/etc/sysconfig/rhn/up2date'], '\n'.join([
             '# Automatically generated Red Hat Update Agent config file, '
                 'do not edit.',

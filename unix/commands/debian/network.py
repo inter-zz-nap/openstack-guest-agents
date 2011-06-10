@@ -29,6 +29,7 @@ from cStringIO import StringIO
 import commands.network
 
 HOSTNAME_FILE = "/etc/hostname"
+RESOLV_FILE = "/etc/resolv.conf"
 INTERFACE_FILE = "/etc/network/interfaces"
 
 INTERFACE_HEADER = \
@@ -57,6 +58,14 @@ def configure_network(network_config):
 
     data = get_hostname_file(hostname)
     update_files[HOSTNAME_FILE] = data
+
+    # Generate new /etc/resolv.conf file
+    # We do write dns-nameservers into the interfaces file, but that
+    # only updates /etc/resolv.conf if the 'resolvconf' package is
+    # installed.  Let's go ahead and modify /etc/resolv.conf.  It's just
+    # possible that it could get re-written twice.. oh well.
+    data = _get_resolv_conf(interfaces)
+    update_files[RESOLV_FILE] = data
 
     # Generate new /etc/hosts file
     filepath, data = commands.network.get_etc_hosts(interfaces, hostname)
@@ -90,6 +99,21 @@ def configure_network(network_config):
 
 def get_hostname_file(hostname):
     return hostname + '\n'
+
+
+def _get_resolv_conf(interfaces):
+    resolv_data = ''
+    for interface in interfaces:
+        if interface['label'] != 'public':
+            continue
+
+        for nameserver in interface.get('dns', []):
+            resolv_data += 'nameserver %s\n' % nameserver
+
+    if not resolv_data:
+        return ''
+
+    return '# Automatically generated, do not edit\n' + resolv_data
 
 
 def _get_file_data(interfaces):
