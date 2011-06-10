@@ -116,3 +116,15 @@ if __name__ == "__main__":
 
     # Install all the libs the binary itself needs
     install_libs(binary, installdir)
+
+    # Install any /lib/libnss_* found
+    # These match the glibc version we'll install.  This also might
+    # install a libresolv and so forth when it searches dependencies
+    dirs = os.listdir("/lib")
+    for d in dirs:
+        if d.startswith("libnss_") or d.startswith("libresolv"):
+            d = "/lib/" + d
+            print "Installing %s" % d
+            shutil.copy2(d, installdir)
+            # Recurse
+            install_libs(d, installdir)
