@@ -199,11 +199,12 @@ def _get_file_data(interfaces):
                 file_data += "iface %s inet static\n" % ifname
                 file_data += "    address %s\n" % ip
                 file_data += "    netmask %s\n" % netmask
-                if label == "public":
+                if gateway4:
                     file_data += "    gateway %s\n" % gateway4
-                    if dns:
-                        file_data += "    dns-nameservers %s\n" % ' '.join(dns)
-                        dns = None
+                    gateway4 = None
+                if dns:
+                    file_data += "    dns-nameservers %s\n" % ' '.join(dns)
+                    dns = None
 
             if ip6_info and ip6_info.get('enabled', '0') != '0':
                 ip = ip6_info.get('address', ip6_info.get('ip'))
@@ -215,16 +216,17 @@ def _get_file_data(interfaces):
                     raise SystemError(
                             "Missing netmask in interface's IPv6 list")
 
-                gateway = ip6_info.get('gateway', gateway6)
+                gateway6 = ip6_info.get('gateway', gateway6)
 
                 file_data += "iface %s inet6 static\n" % ifname
                 file_data += "    address %s\n" % ip
                 file_data += "    netmask %s\n" % netmask
-                if gateway:
-                    file_data += "    gateway %s\n" % gateway
-                    if dns:
-                        file_data += "    dns-nameservers %s\n" % ' '.join(dns)
-                        dns = None
+                if gateway6:
+                    file_data += "    gateway %s\n" % gateway6
+                    gateway6 = None
+                if dns:
+                    file_data += "    dns-nameservers %s\n" % ' '.join(dns)
+                    dns = None
 
             ifname_suffix_num += 1
 
