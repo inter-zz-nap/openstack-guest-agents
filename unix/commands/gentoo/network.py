@@ -206,7 +206,7 @@ def _get_file_data(interfaces):
             netmask = route['netmask']
             gateway = route['gateway']
 
-            routes.append('%s netmask via %s' % (ip, netmask, gateway))
+            routes.append('%s netmask %s via %s' % (ip, netmask, gateway))
 
         if gateway4:
             routes.append('default via %s' % gateway4)

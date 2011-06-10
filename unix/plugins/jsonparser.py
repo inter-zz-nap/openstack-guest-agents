@@ -78,7 +78,15 @@ class JsonParser(object):
             return self.encode_result((500, "Request is missing 'name' key"))
         cmd_string = request.get('value', '')
 
-        logging.info("Received command '%s' with argument: '%s'" % \
+        # XXX Major kludge here to not log activation keys for redhat
+        if isinstance(cmd_string, dict) and \
+                'activation_key' in cmd_string:
+            cs_copy = cmd_string.copy()
+            cs_copy['activation_key'] = "<removed>"
+            logging.info("Received command '%s' with argument: '%s'" % \
+                (cmd_name, cs_copy))
+        else:
+            logging.info("Received command '%s' with argument: '%s'" % \
                 (cmd_name, cmd_string))
 
         try:
