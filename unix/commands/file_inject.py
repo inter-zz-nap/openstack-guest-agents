@@ -22,6 +22,8 @@ JSON File injection plugin
 
 import base64
 import commands
+import os
+import os.path
 
 
 class FileInject(commands.CommandBase):
@@ -38,6 +40,10 @@ class FileInject(commands.CommandBase):
             return (500, "Error doing base64 decoding of data")
 
         (filename, data) = b64_decoded.split(',', 1)
+
+        dirname = os.path.dirname(filename)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
 
         f = open(filename, 'w')
         f.write(data)
