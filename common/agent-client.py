@@ -122,7 +122,7 @@ class AgentComm(object):
 
         if retcode != 'D0':
             raise SystemError(
-                    "Invalid response to keyinit: %s" % repr(resp))
+                    "Invalid response to keyinit: %s" % retcode)
 
         # Older Windows agent will sometimes add \\r\\n (escaped CRLF) to
         # the end of responses.
