@@ -116,13 +116,15 @@ class AgentComm(object):
         my_private_key = int(binascii.hexlify(os.urandom(10)), 16)
         my_public_key = self._mod_exp(5, my_private_key, prime)
 
-        resp = self._do_request("keyinit", my_public_key)
+        retcode, message = self._do_request("keyinit", my_public_key)
 
-        if resp[0] != 'D0':
+        if retcode != 'D0':
             raise SystemError(
                     "Invalid response to keyinit: %s" % repr(resp))
 
-        shared_key = str(self._mod_exp(int(resp[1]),
+        # Older Windows agent will sometimes add \\r\\n (escaped CRLF) to
+        # the end of responses.
+        shared_key = str(self._mod_exp(int(message.strip('\\r\\n')),
                 my_private_key, prime))
 
         cmd = ["openssl", "enc", "-aes-128-cbc", "-a",
