@@ -56,7 +56,11 @@ class AgentComm(object):
         return result
 
     def _get_uuid(self):
-        return binascii.hexlify(os.urandom(8))
+        # Older Windows agents require something that actually looks like a
+        # UUID. dom0 has an old python that doesn't have the uuid module, so
+        # create it ourselves by hand
+        return '-'.join([binascii.hexlify(os.urandom(x))
+                         for x in (4, 2, 2, 2, 6)])
 
     def _do_request(self, command, value):
         uuid = self._get_uuid()
