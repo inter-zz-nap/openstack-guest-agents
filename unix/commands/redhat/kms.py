@@ -122,11 +122,10 @@ def kms_activate(data):
     domains = data['domains']
 
     update_files = configure_up2date(domains)
+    commands.network.update_files(update_files)
 
     ret = register_with_rhn(activation_key, profile)
     if ret:
         return ret
-
-    commands.network.update_files(update_files)
 
     return (0, "")
