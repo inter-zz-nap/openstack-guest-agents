@@ -130,7 +130,9 @@ class AgentComm(object):
 
         p = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        p.stdin.write(password)
+        # Older Windows and Linux agents require password to have trailing
+        # newline added
+        p.stdin.write(password + '\n')
         p.stdin.close()
         b64_pass = p.stdout.read().rstrip()
         err = p.stderr.read()
