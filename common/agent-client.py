@@ -116,7 +116,9 @@ class AgentComm(object):
         my_private_key = int(binascii.hexlify(os.urandom(10)), 16)
         my_public_key = self._mod_exp(5, my_private_key, prime)
 
-        retcode, message = self._do_request("keyinit", my_public_key)
+        # Older Windows agent requires public key to be a string, not an
+        # integer
+        retcode, message = self._do_request("keyinit", str(my_public_key))
 
         if retcode != 'D0':
             raise SystemError(
