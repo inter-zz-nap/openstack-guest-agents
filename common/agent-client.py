@@ -56,7 +56,11 @@ class AgentComm(object):
         return result
 
     def _get_uuid(self):
-        return binascii.hexlify(os.urandom(8))
+        # Older Windows agents require something that actually looks like a
+        # UUID. dom0 has an old python that doesn't have the uuid module, so
+        # create it ourselves by hand
+        return '-'.join([binascii.hexlify(os.urandom(x))
+                         for x in (4, 2, 2, 2, 6)])
 
     def _do_request(self, command, value):
         uuid = self._get_uuid()
@@ -112,13 +116,17 @@ class AgentComm(object):
         my_private_key = int(binascii.hexlify(os.urandom(10)), 16)
         my_public_key = self._mod_exp(5, my_private_key, prime)
 
-        resp = self._do_request("keyinit", my_public_key)
+        # Older Windows agent requires public key to be a string, not an
+        # integer
+        retcode, message = self._do_request("keyinit", str(my_public_key))
 
-        if resp[0] != 'D0':
+        if retcode != 'D0':
             raise SystemError(
-                    "Invalid response to keyinit: %s" % repr(resp))
+                    "Invalid response to keyinit: %s" % retcode)
 
-        shared_key = str(self._mod_exp(int(resp[1]),
+        # Older Windows agent will sometimes add \\r\\n (escaped CRLF) to
+        # the end of responses.
+        shared_key = str(self._mod_exp(int(message.strip('\\r\\n')),
                 my_private_key, prime))
 
         cmd = ["openssl", "enc", "-aes-128-cbc", "-a",
@@ -126,7 +134,9 @@ class AgentComm(object):
 
         p = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        p.stdin.write(password)
+        # Older Windows and Linux agents require password to have trailing
+        # newline added
+        p.stdin.write(password + '\n')
         p.stdin.close()
         b64_pass = p.stdout.read().rstrip()
         err = p.stderr.read()
