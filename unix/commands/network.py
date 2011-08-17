@@ -219,7 +219,7 @@ def update_files(update_files, remove_files=None, dont_rename=False):
                 continue
 
         tmp_file = filepath + ".%d~" % os.getpid()
-        bak_file = filepath + ".%d.bak" % time.time()
+        bak_file = filepath + ".%d~" % time.time()
 
         logging.info("writing %s" % filepath)
 
@@ -248,4 +248,4 @@ def update_files(update_files, remove_files=None, dont_rename=False):
     for filepath in remove_files:
         logging.info("moving aside old file %s" % filepath)
         if not dont_rename:
-            os.rename(filepath, filepath + ".%d.bak" % time.time())
+            os.rename(filepath, filepath + ".%d~" % time.time())
