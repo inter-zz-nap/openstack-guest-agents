@@ -550,8 +550,8 @@ def _update_rc_conf_netcfg(infile, netnames):
     return outfile.read()
 
 
-def get_interface_files(infiles, interfaces, netcfg):
-    if netcfg:
+def get_interface_files(infiles, interfaces, version):
+    if version == 'netcfg':
         update_files = {}
         netnames = []
         for interface in interfaces:
