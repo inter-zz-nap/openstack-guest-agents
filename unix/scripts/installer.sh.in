@@ -31,11 +31,14 @@ my_dir=`dirname $0`
 
 add_to_startup() {
     if [ -f /usr/sbin/update-rc.d ] ; then
+        # Debian style
         /usr/sbin/update-rc.d nova-agent start 20 2 3 4 5 . stop 20 0 1 6 . > /dev/null 2>&1
     elif [ -f /sbin/chkconfig ] ; then
+        # Red Hat style
         /sbin/chkconfig nova-agent on > /dev/null 2>&1
     elif [ -f /sbin/rc-update ] ; then
-        /sbin/rc-update add nova-agent default > /dev/null 2>&1
+        # Gentoo style
+        /sbin/rc-update add nova-agent.gentoo.init default > /dev/null 2>&1
     elif [ -f /etc/arch-release ] ; then
         # Arch is a hybrid BSD and SysV style init system. We just need to
         # install a SysV style script into /etc/rc.d, but then update
@@ -82,11 +85,16 @@ fi
 cp -R ${my_dir}/${dataversdir} ${dataversdir}
 
 # Install the init file symlink
-if [ -d /etc/init.d ]; then
-    # Linux
+if [ -x /sbin/runscript ]; then
+    # Gentoo Linux
+    rm -f /etc/init.d/nova-agent.gentoo.init
+    ln -s ${dataversdir}/etc/nova-agent.gentoo.init /etc/init.d/nova-agent.gentoo.init
+elif [ -d /etc/init.d ]; then
+    # Generic Linux
     rm -f /etc/init.d/nova-agent
     ln -s ${dataversdir}/etc/nova-agent.init /etc/init.d/nova-agent
 elif [ -f /etc/arch-release ] ; then
+    # Arch Linux
     rm -f /etc/rc.d/nova-agent
     ln -s ${dataversdir}/etc/nova-agent.init /etc/rc.d/nova-agent
 elif [ -d /etc/rc.d ]; then
@@ -94,6 +102,7 @@ elif [ -d /etc/rc.d ]; then
     rm -f /etc/rc.d/nova-agent
     ln -s ${dataversdir}/etc/nova-agent.freebsd.init /etc/rc.d/nova-agent
 else
+    # Unknown, just try something and hope it works
     rm -f /etc/nova-agent.init
     ln -s ${dataversdir}/etc/nova-agent.init /etc/nova-agent.init
 fi
