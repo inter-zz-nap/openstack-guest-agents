@@ -31,8 +31,6 @@ logfile="/var/log/nova-agent.log"
 loglevel="info"
 
 start() {
-    LD_LIBRARY_PATH="${reallibdir}"
-    export LD_LIBRARY_PATH
     ebegin "Starting nova-agent"
     start-stop-daemon --start --exec ${nova_agent} \
         --pidfile ${pidfile} \
@@ -43,6 +41,6 @@ start() {
 stop() {
     ebegin "Stopping nova-agent"
     start-stop-daemon --stop --exec ${nova_agent} \
-        --pidfile ${pidfile --quiet
+        --pidfile ${pidfile} --quiet
     eend $?
 }
