@@ -33,7 +33,7 @@ import commands.suse.network
 
 class TestInterfacesUpdates(agent_test.TestCase):
 
-    def _run_test(self, dist, infiles=None, netcfg=False, **config):
+    def _run_test(self, dist, infiles=None, version=None, **config):
         interfaces = []
         for label, options in config.iteritems():
             interface = {'label': label, 'mac': options['hwaddr']}
@@ -61,11 +61,15 @@ class TestInterfacesUpdates(agent_test.TestCase):
 
             interfaces.append(interface)
 
+        kwargs = {}
+        if version:
+            kwargs = {'version': version}
+
         mod = getattr(commands, dist).network
         if infiles:
-            return mod.get_interface_files(infiles, interfaces, netcfg=netcfg)
+            return mod.get_interface_files(infiles, interfaces, **kwargs)
         else:
-            return mod.get_interface_files(interfaces)
+            return mod.get_interface_files(interfaces, **kwargs)
 
     def test_redhat_ipv4(self):
         """Test setting public IPv4 for Red Hat networking"""
@@ -178,7 +182,8 @@ class TestInterfacesUpdates(agent_test.TestCase):
             'gateway4': '192.0.2.1',
             'dns': ['192.0.2.2'],
         }
-        outfiles = self._run_test('arch', infiles, public=interface)
+        outfiles = self._run_test('arch', infiles, public=interface,
+                                  version='legacy')
         self.assertTrue('/etc/rc.conf' in outfiles)
         self.assertEqual(outfiles['/etc/rc.conf'], '\n'.join([
             'eth0="eth0 192.0.2.42 netmask 255.255.255.0"',
@@ -201,7 +206,8 @@ class TestInterfacesUpdates(agent_test.TestCase):
             'gateway6': '2001:db8::1',
             'dns': ['2001:db8::2'],
         }
-        outfiles = self._run_test('arch', infiles, public=interface)
+        outfiles = self._run_test('arch', infiles, public=interface,
+                                  version='legacy')
         self.assertTrue('/etc/rc.conf' in outfiles)
         self.assertEqual(outfiles['/etc/rc.conf'], '\n'.join([
             'eth0="eth0 add 2001:db8::42/96"',
@@ -223,7 +229,7 @@ class TestInterfacesUpdates(agent_test.TestCase):
             'dns': ['192.0.2.2'],
         }
         outfiles = self._run_test('arch', infiles, public=interface,
-                                  netcfg=True)
+                                  version='netcfg')
         self.assertTrue('/etc/rc.conf' in outfiles)
         self.assertEqual(outfiles['/etc/rc.conf'], '\n'.join([
             'NETWORKS=(eth0)',
@@ -252,7 +258,7 @@ class TestInterfacesUpdates(agent_test.TestCase):
             'dns': ['2001:db8::2'],
         }
         outfiles = self._run_test('arch', infiles, public=interface,
-                                  netcfg=True)
+                                  version='netcfg')
         self.assertTrue('/etc/rc.conf' in outfiles)
         self.assertEqual(outfiles['/etc/rc.conf'], '\n'.join([
             'NETWORKS=(eth0)',
@@ -265,15 +271,15 @@ class TestInterfacesUpdates(agent_test.TestCase):
             'GATEWAY6="2001:db8::1"',
             'DNS=(2001:db8::2)']) + '\n')
 
-    def test_gentoo_ipv4(self):
-        """Test setting public IPv4 for Gentoo networking"""
+    def test_gentoo_legacy_ipv4(self):
+        """Test setting public IPv4 for Gentoo legacy networking"""
         interface = {
             'hwaddr': '00:11:22:33:44:55',
             'ipv4': [('192.0.2.42', '255.255.255.0')],
             'gateway4': '192.0.2.1',
             'dns': ['192.0.2.2'],
         }
-        outfiles = self._run_test('gentoo', public=interface)
+        outfiles = self._run_test('gentoo', public=interface, version='legacy')
         self.assertTrue('net' in outfiles)
         self.assertEqual(outfiles['net'], '\n'.join([
             '# Automatically generated, do not edit',
@@ -286,15 +292,15 @@ class TestInterfacesUpdates(agent_test.TestCase):
             '    "default via 192.0.2.1"',
             ')']) + '\n')
 
-    def test_gentoo_ipv6(self):
-        """Test setting public IPv6 for Gentoo networking"""
+    def test_gentoo_legacy_ipv6(self):
+        """Test setting public IPv6 for Gentoo legacy networking"""
         interface = {
             'hwaddr': '00:11:22:33:44:55',
             'ipv6': [('2001:db8::42', 96)],
             'gateway6': '2001:db8::1',
             'dns': ['2001:db8::2'],
         }
-        outfiles = self._run_test('gentoo', public=interface)
+        outfiles = self._run_test('gentoo', public=interface, version='legacy')
         self.assertTrue('net' in outfiles)
         self.assertEqual(outfiles['net'], '\n'.join([
             '# Automatically generated, do not edit',
@@ -306,6 +312,40 @@ class TestInterfacesUpdates(agent_test.TestCase):
             'routes_eth0=(',
             '    "default via 2001:db8::1"',
             ')']) + '\n')
+
+    def test_gentoo_openrc_ipv4(self):
+        """Test setting public IPv4 for Gentoo OpenRC networking"""
+        interface = {
+            'hwaddr': '00:11:22:33:44:55',
+            'ipv4': [('192.0.2.42', '255.255.255.0')],
+            'gateway4': '192.0.2.1',
+            'dns': ['192.0.2.2'],
+        }
+        outfiles = self._run_test('gentoo', public=interface, version='openrc')
+        self.assertTrue('net' in outfiles)
+        self.assertEqual(outfiles['net'], '\n'.join([
+            '# Automatically generated, do not edit',
+            'modules="ifconfig"',
+            '',
+            'config_eth0="192.0.2.42 netmask 255.255.255.0"',
+            'routes_eth0="default via 192.0.2.1"']) + '\n')
+
+    def test_gentoo_openrc_ipv6(self):
+        """Test setting public IPv6 for Gentoo OpenRC networking"""
+        interface = {
+            'hwaddr': '00:11:22:33:44:55',
+            'ipv6': [('2001:db8::42', 96)],
+            'gateway6': '2001:db8::1',
+            'dns': ['2001:db8::2'],
+        }
+        outfiles = self._run_test('gentoo', public=interface, version='openrc')
+        self.assertTrue('net' in outfiles)
+        self.assertEqual(outfiles['net'], '\n'.join([
+            '# Automatically generated, do not edit',
+            'modules="ifconfig"',
+            '',
+            'config_eth0="2001:db8::42/96"',
+            'routes_eth0="default via 2001:db8::1"']) + '\n')
 
     def test_suse_ipv4(self):
         """Test setting public IPv4 for SuSE networking"""

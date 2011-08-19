@@ -42,7 +42,12 @@ def configure_network(network_config, *args, **kwargs):
     # Generate new interface files
     interfaces = network_config.get('interfaces', [])
 
-    data, ifaces = _get_file_data(interfaces)
+    # Figure out if this system is running OpenRC
+    if os.path.islink('/sbin/runscript'):
+        data, ifaces = _get_file_data_openrc(interfaces)
+    else:
+        data, ifaces = _get_file_data_legacy(interfaces)
+
     update_files = {NETWORK_FILE: data}
 
     # Generate new /etc/resolv.conf file
@@ -117,7 +122,7 @@ def _get_resolv_conf(interfaces):
     return '# Automatically generated, do not edit\n' + resolv_data
 
 
-def _get_file_data(interfaces):
+def _get_file_data_legacy(interfaces):
     """
     Return data for (sub-)interfaces and routes
     """
@@ -224,7 +229,114 @@ def _get_file_data(interfaces):
     return network_data, ifaces
 
 
-def get_interface_files(interfaces):
-    data, ifaces = _get_file_data(interfaces)
+def _get_file_data_openrc(interfaces):
+    """
+    Return data for (sub-)interfaces and routes
+    """
+
+    ifaces = set()
+
+    network_data = '# Automatically generated, do not edit\n'
+    network_data += 'modules="ifconfig"\n\n'
+
+    for interface in interfaces:
+        try:
+            label = interface['label']
+        except KeyError:
+            raise SystemError("No interface label found")
+
+        try:
+            ifname = INTERFACE_LABELS[label]
+        except KeyError:
+            raise SystemError("Invalid label '%s'" % label)
+
+        ip4s = interface.get('ips', [])
+        ip6s = interface.get('ip6s', [])
+
+        if not ip4s and not ip6s:
+            raise SystemError("No IPs found for interface")
+
+        try:
+            mac = interface['mac']
+        except KeyError:
+            raise SystemError("No mac address found for interface")
+
+        if label == "public":
+            gateway4 = interface.get('gateway')
+            gateway6 = interface.get('gateway6')
+
+            if not gateway4 and not gateway6:
+                raise SystemError("No gateway found for public interface")
+
+            try:
+                dns = interface['dns']
+            except KeyError:
+                raise SystemError("No DNS found for public interface")
+        else:
+            gateway4 = gateway6 = None
+
+        iface_data = []
+
+        for ip_info in ip4s:
+            enabled = ip_info.get('enabled', '0')
+            if enabled != '1':
+                continue
+
+            try:
+                ip = ip_info['ip']
+                netmask = ip_info['netmask']
+            except KeyError:
+                raise SystemError(
+                        "Missing IP or netmask in interface's IP list")
+
+            iface_data.append('%s netmask %s' % (ip, netmask))
+
+        for ip_info in ip6s:
+            enabled = ip_info.get('enabled', '0')
+            if enabled != '1':
+                continue
+
+            ip = ip_info.get('address', ip_info.get('ip'))
+            if not ip:
+                raise SystemError(
+                        "Missing IP in interface's IP list")
+            netmask = ip_info.get('netmask')
+            if not netmask:
+                raise SystemError(
+                        "Missing netmask in interface's IP list")
+
+            if not gateway6:
+                gateway6 = ip_info.get('gateway', gateway6)
+
+            iface_data.append('%s/%s' % (ip, netmask))
+
+        network_data += 'config_%s="%s"\n' % (ifname, '\n'.join(iface_data))
+
+        route_data = []
+        for route in interface.get('routes', []):
+            network = route['route']
+            netmask = route['netmask']
+            gateway = route['gateway']
+
+            route_data.append('%s netmask %s via %s' % (ip, netmask, gateway))
+
+        if gateway4:
+            route_data.append('default via %s' % gateway4)
+        if gateway6:
+            route_data.append('default via %s' % gateway6)
+
+        if route_data:
+            network_data += 'routes_%s="%s"\n' % (ifname, '\n'.join(route_data))
+
+        ifaces.add(ifname)
+
+    return network_data, ifaces
+
+
+def get_interface_files(interfaces, version):
+    if version == 'openrc':
+        data, ifaces = _get_file_data_openrc(interfaces)
+    else:
+        data, ifaces = _get_file_data_legacy(interfaces)
 
     return {'net': data}
