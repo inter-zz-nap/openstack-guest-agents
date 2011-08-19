@@ -13,15 +13,18 @@ EXTRA_DIST = install_libs.py install_modules.py nova-agent.py \
 data_DATA = nova-agent.py
 
 nodist_noinst_DATA = agentlib.so \
-					scripts/installer.sh \
-					scripts/nova-agent.init \
-					scripts/nova-agent.freebsd.init
+			scripts/installer.sh \
+			scripts/nova-agent.init \
+			scripts/nova-agent.gentoo.init \
+			scripts/nova-agent.freebsd.init
 
 noinst_DATA = scripts/nova-agent.init.in \
-			  scripts/nova-agent.freebsd.init.in
+		scripts/nova-agent.gentoo.init.in \
+		scripts/nova-agent.freebsd.init.in
 
 etc_DATA = scripts/nova-agent.init \
-		   scripts/nova-agent.freebsd.init
+		scripts/nova-agent.gentoo.init \
+		scripts/nova-agent.freebsd.init
 
 agentlib.so:
 	    ln -s lib/.libs/agentlib.so agentlib.so
