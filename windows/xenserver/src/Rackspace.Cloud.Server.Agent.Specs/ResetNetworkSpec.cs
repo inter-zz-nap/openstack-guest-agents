@@ -30,7 +30,7 @@ namespace Rackspace.Cloud.Server.Agent.Specs {
             command = new ResetNetwork(setNetworkInterface, xenNetworkInformation, setNetworkRoutes);
             xenNetworkInformation.Stub(x => x.Get()).Return(network);
 
-            setNetworkInterface.Expect(x => x.Execute(networkInterface)).Repeat.Once();
+            setNetworkInterface.Expect(x => x.Execute(null)).Repeat.Once();
 
             result = command.Execute(null);
 
@@ -39,7 +39,7 @@ namespace Rackspace.Cloud.Server.Agent.Specs {
 
         [Test]
         public void should_set_interface_from_interfaceconfigiuration() {
-            setNetworkInterface.AssertWasCalled(x => x.Execute(networkInterface));
+            setNetworkInterface.AssertWasCalled(x => x.Execute(null));
             setNetworkRoutes.AssertWasCalled(x => x.Execute(network));
         }
 

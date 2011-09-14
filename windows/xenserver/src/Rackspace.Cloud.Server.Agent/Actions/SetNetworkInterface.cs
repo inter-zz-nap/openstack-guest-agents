@@ -15,16 +15,18 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using Rackspace.Cloud.Server.Agent.Configuration;
 using Rackspace.Cloud.Server.Agent.Interfaces;
 using Rackspace.Cloud.Server.Agent.Utilities;
 using Rackspace.Cloud.Server.Agent.WMI;
 using Rackspace.Cloud.Server.Common.Logging;
+using System.Linq;
 
 namespace Rackspace.Cloud.Server.Agent.Actions
 {
     public interface ISetNetworkInterface {
-        void Execute(NetworkInterface networkInterface);
+        void Execute(List<NetworkInterface> networkInterfaces);
     }
 
     public class SetNetworkInterface : ISetNetworkInterface {
@@ -38,18 +40,37 @@ namespace Rackspace.Cloud.Server.Agent.Actions
             _logger = logger;
         }
 
-        public void Execute(NetworkInterface networkInterface) {
-
+        public void Execute(List<NetworkInterface> networkInterfaces) {
             var nameAndMacs = _wmiMacNetworkNameGetter.Get();
             if (WereInterfacesEnabled(nameAndMacs)) nameAndMacs = _wmiMacNetworkNameGetter.Get();
-
             LogLocalInterfaces(nameAndMacs);
 
-            string macAddress = networkInterface.mac.ToUpper();
-            if (!nameAndMacs.Values.Contains(macAddress)) throw new ApplicationException(String.Format("Interface with MAC Addres {0} not found on machine", macAddress));
-            
-            string interfaceName = nameAndMacs.FindKey(macAddress);
+            VerifyAllNetworkInterfacesFoundOnMachine(nameAndMacs, networkInterfaces);
 
+            foreach (var networkName in ReverseSortWithKey(nameAndMacs))
+            {
+                var matchedNetworkInterface = networkInterfaces.Find(x => nameAndMacs[networkName].Equals(x.mac.ToUpper()));
+                if (matchedNetworkInterface != null)
+                    SetNetworkInterfaceValues(matchedNetworkInterface, networkName);
+            }
+        }
+
+        private void VerifyAllNetworkInterfacesFoundOnMachine(IDictionary<string, string> nameAndMacs, List<NetworkInterface> networkInterfaces)
+        {
+            var networkInterfaceNotFoundOnMachine = networkInterfaces.Find(x => nameAndMacs.FindKey(x.mac.ToUpper()) == null);
+            if (networkInterfaceNotFoundOnMachine != null)
+                throw new ApplicationException(String.Format("Interface with MAC Addres {0} not found on machine", networkInterfaceNotFoundOnMachine.mac));
+        }
+
+        private string[] ReverseSortWithKey(IDictionary<string, string> keyValuePair)
+        {
+            var allKeys = keyValuePair.Keys.ToArray();
+            Array.Sort(allKeys);Array.Reverse(allKeys);
+            return allKeys;
+        }
+
+        private void SetNetworkInterfaceValues(NetworkInterface networkInterface, string interfaceName)
+        {
             CleanseInterfaceForSetup(interfaceName);
             SetupInterface(interfaceName, networkInterface);
 
