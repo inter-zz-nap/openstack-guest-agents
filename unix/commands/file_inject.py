@@ -24,6 +24,7 @@ import base64
 import commands
 import os
 import os.path
+import time
 
 
 class FileInject(commands.CommandBase):
@@ -45,8 +46,14 @@ class FileInject(commands.CommandBase):
         if not os.path.exists(dirname):
             os.makedirs(dirname)
 
-        f = open(filename, 'w')
+        f = open(filename + '.tmp', 'w')
         f.write(data)
         f.close()
+
+        if os.path.exists(filename):
+            # Backup old file first
+            os.rename(filename, filename + '.bak.%s' % time.time())
+
+        os.rename(filename + '.tmp', filename)
 
         return (0, "")
