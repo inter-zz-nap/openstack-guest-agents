@@ -46,7 +46,9 @@ class FileInject(commands.CommandBase):
         if not os.path.exists(dirname):
             os.makedirs(dirname)
 
-        f = open(filename + '.tmp', 'w')
+        tempfilename = filename + '.tmp.%s' % time.time()
+
+        f = open(tempfilename, 'w')
         f.write(data)
         f.close()
 
@@ -54,6 +56,6 @@ class FileInject(commands.CommandBase):
             # Backup old file first
             os.rename(filename, filename + '.bak.%s' % time.time())
 
-        os.rename(filename + '.tmp', filename)
+        os.rename(tempfilename, filename)
 
         return (0, "")
