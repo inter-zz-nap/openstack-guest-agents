@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using NUnit.Framework.SyntaxHelpers;
 using Rackspace.Cloud.Server.Agent.Actions;
@@ -26,20 +27,15 @@ namespace Rackspace.Cloud.Server.Agent.Specs {
             networkInterface = new NetworkInterface();
             network = new Network();
             network.Interfaces.Add("fakemac", networkInterface);
-
             command = new ResetNetwork(setNetworkInterface, xenNetworkInformation, setNetworkRoutes);
             xenNetworkInformation.Stub(x => x.Get()).Return(network);
 
-            setNetworkInterface.Expect(x => x.Execute(null)).Repeat.Once();
-
-            result = command.Execute(null);
-
-            setNetworkInterface.Replay();
+            result = command.Execute(null);            
         }
 
         [Test]
         public void should_set_interface_from_interfaceconfigiuration() {
-            setNetworkInterface.AssertWasCalled(x => x.Execute(null));
+            setNetworkInterface.AssertWasCalled(x => x.Execute(new List<NetworkInterface> { networkInterface }));
             setNetworkRoutes.AssertWasCalled(x => x.Execute(network));
         }
 

@@ -6,7 +6,7 @@ COPYRIGHT = "Copyright (c) 2009 2010 2011, Rackspace Cloud.  All Rights Reserved
 COMPANY = "Rackspace Cloud"
 DESCRIPTION = "C#.NET Agent for Windows Virtual Machines"
 CLR_VERSION = 'v3.5'
-RELEASE_BUILD_NUMBER = "1.0.28.0"
+RELEASE_BUILD_NUMBER = "1.0.29.0"
 
 #Paths
 SLN_FILE = File.join(ABSOLUTE_PATH,'src','WindowsConfigurationAgent.sln')

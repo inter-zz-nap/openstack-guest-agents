@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'albacore'
-require "Properties.rb"
-require "fileutils"
+require './Properties.rb'
+require 'fileutils'
 
 desc "compiles, runs tests and creates zip file"
 task :all => [:default]
@@ -105,7 +105,7 @@ namespace :agent_service do
     File.delete(file) if File.exists?(file)
     zip.output_path = BUILDS_DIR
     zip.directories_to_zip AGENT_SERVICE_DIR
-    zip.additional_files = "installagentservice.bat"
+    zip.additional_files = ["installagentservice.bat"]
     zip.output_file = file
     puts "Agent Service zip file created"
   end
@@ -128,7 +128,7 @@ namespace :update_service do
     File.delete(file) if File.exists?(file)
     zip.output_path = BUILDS_DIR
     zip.directories_to_zip UPDATE_SERVICE_DIR
-    zip.additional_files = "installupdateservice.bat"
+    zip.additional_files = ["installupdateservice.bat"]
     zip.output_file = file
     puts "Update Service zip file created"
   end
