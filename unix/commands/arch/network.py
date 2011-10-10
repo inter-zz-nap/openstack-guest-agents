@@ -404,7 +404,7 @@ def _get_file_data_netcfg(interface):
         except KeyError:
             raise SystemError("No DNS found for public interface")
     else:
-        gateway4 = gateway6 = None
+        gateway4 = gateway6 = dns = None
 
     ifname_suffix_num = 0
 
