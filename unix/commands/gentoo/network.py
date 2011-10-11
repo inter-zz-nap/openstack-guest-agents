@@ -78,8 +78,14 @@ def configure_network(network_config, *args, **kwargs):
 
     # Restart network
     for ifname in ifaces:
-        logging.debug('executing /etc/init.d/net.%s restart' % ifname)
-        p = subprocess.Popen(["/etc/init.d/net.%s" % ifname, "restart"],
+        scriptpath = '/etc/init.d/net.%s' % ifname
+
+        if not os.path.exists(scriptpath):
+            # Gentoo won't create these symlinks automatically
+            os.symlink('net.lo', scriptpath)
+
+        logging.debug('executing %s restart' % scriptpath)
+        p = subprocess.Popen([scriptpath, 'restart'],
                 stdin=pipe, stdout=pipe, stderr=pipe, env={})
         logging.debug('waiting on pid %d' % p.pid)
         status = os.waitpid(p.pid, 0)[1]
