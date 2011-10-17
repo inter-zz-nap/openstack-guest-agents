@@ -56,7 +56,8 @@ def configure_network(hostname, interfaces):
 
     # Generate new /etc/resolv.conf file
     filepath, data = commands.network.get_resolv_conf(interfaces)
-    update_files[filepath] = data
+    if data:
+        update_files[filepath] = data
 
     # Generate new hostname file
     hostname = network_config.get('hostname')

@@ -131,7 +131,7 @@ def _get_file_data(ifname_prefix, interface):
     gateway4 = interface['gateway4']
     gateway6 = interface['gateway6']
 
-    dns = interface.get('dns', [])
+    dns = interface['dns']
 
     ifaces = []
 

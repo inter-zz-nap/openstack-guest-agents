@@ -63,7 +63,8 @@ def configure_network(hostname, interfaces):
     # installed.  Let's go ahead and modify /etc/resolv.conf.  It's just
     # possible that it could get re-written twice.. oh well.
     filepath, data = commands.network.get_resolv_conf(interfaces)
-    update_files[filepath] = data
+    if data:
+        update_files[filepath] = data
 
     # Generate new /etc/hosts file
     filepath, data = commands.network.get_etc_hosts(interfaces, hostname)
@@ -183,7 +184,7 @@ def _get_file_data(interfaces):
         gateway4 = interface['gateway4']
         gateway6 = interface['gateway6']
 
-        dns = interface.get('dns', [])
+        dns = interface['dns']
 
         ifname_suffix_num = 0
 

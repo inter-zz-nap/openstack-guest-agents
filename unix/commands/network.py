@@ -330,6 +330,8 @@ class NetworkCommands(commands.CommandBase):
 
             ifconfig['routes'] = routes
 
+            ifconfig['dns'] = interface.get('dns', [])
+
             config[ifname] = ifconfig
 
         # TODO: Should we fail if there isn't at least one gateway specified?
@@ -432,7 +434,7 @@ def get_gateways(interfaces):
 
 def get_nameservers(interfaces):
     for interface in interfaces.itervalues():
-        for nameserver in interface.get('dns', []):
+        for nameserver in interface['dns']:
             yield nameserver
 
 
@@ -442,7 +444,7 @@ def get_resolv_conf(interfaces):
         resolv_data += 'nameserver %s\n' % nameserver
 
     if not resolv_data:
-        return ''
+        return None, None
 
     return RESOLV_CONF_FILE, '# Automatically generated, do not edit\n' + \
                              resolv_data

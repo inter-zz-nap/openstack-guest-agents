@@ -83,7 +83,8 @@ def configure_network(hostname, interfaces):
 
         # Generate new /etc/resolv.conf file
         filepath, data = commands.network.get_resolv_conf(interfaces)
-        update_files[filepath] = data
+        if data:
+            update_files[filepath] = data
 
     # Update config file with new hostname
     infile = StringIO(update_files.get(CONF_FILE, ''))
@@ -316,7 +317,7 @@ def _get_file_data_netcfg(ifname_prefix, interface):
     gateway4 = interface['gateway4']
     gateway6 = interface['gateway6']
 
-    dns = interface.get('dns', [])
+    dns = interface['dns']
 
     ifname_suffix_num = 0
 
