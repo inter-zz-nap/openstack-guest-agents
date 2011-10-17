@@ -89,7 +89,7 @@ static PyObject *_agentlib_get_interfaces(PyObject *self, PyObject *args)
         if (sdl->sdl_type != IFT_ETHER)
             goto next;
 
-        unsigned char *lladdr = LLADDR(sdl);
+        unsigned char *lladdr = (unsigned char *)LLADDR(sdl);
 #endif
 
         PyObject *macaddr = PyString_FromFormat(
