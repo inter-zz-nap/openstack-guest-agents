@@ -269,6 +269,10 @@ class NetworkCommands(commands.CommandBase):
             if not ip4s and not ip6s:
                 raise RuntimeError('No IPs found for interface')
 
+            # Gateway (especially IPv6) can be tied to an interface
+            gateway4 = interface.get('gateway')
+            gateway6 = interface.get('gateway6')
+
             # Filter out any IPs that aren't enabled
             ip4s = filter(lambda i: i.get('enabled', '0') != '0', ip4s)
             ip6s = filter(lambda i: i.get('enabled', '0') != '0', ip6s)
@@ -290,6 +294,11 @@ class NetworkCommands(commands.CommandBase):
                 if 'netmask' not in ip:
                     raise RuntimeError("Missing 'netmask' key for IPv6 address")
 
+                if 'gateway' in ip:
+                    # FIXME: Should we fail if gateway6 is already set?
+                    gateway6 = ip['gateway']
+                    del ip['gateway']
+
                 # FIXME: Should we fail if both 'ip' and 'address' are
                 # specified but differ?
 
@@ -304,10 +313,6 @@ class NetworkCommands(commands.CommandBase):
 
             ifconfig['ip4s'] = ip4s
             ifconfig['ip6s'] = ip6s
-
-            # Gateway (especially IPv6) can be interface specific
-            gateway4 = interface.get('gateway')
-            gateway6 = interface.get('gateway6')
 
             ifconfig['gateway4'] = gateway4
             ifconfig['gateway6'] = gateway6
