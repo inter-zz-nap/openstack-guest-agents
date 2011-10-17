@@ -177,7 +177,12 @@ def _get_file_data(interfaces):
 
     file_data = INTERFACE_HEADER
 
-    for ifname_prefix, interface in interfaces.iteritems():
+    ifnames = interfaces.keys()
+    ifnames.sort()
+
+    for ifname_prefix in ifnames:
+        interface = interfaces[ifname_prefix]
+
         ip4s = interface['ip4s']
         ip6s = interface['ip6s']
 

@@ -126,7 +126,12 @@ def _get_file_data_legacy(interfaces):
     network_data = '# Automatically generated, do not edit\n'
     network_data += 'modules=( "ifconfig" )\n\n'
 
-    for ifname, interface in interfaces.iteritems():
+    ifnames = interfaces.keys()
+    ifnames.sort()
+
+    for ifname in ifnames:
+        interface = interfaces[ifname]
+
         ip4s = interface['ip4s']
         ip6s = interface['ip6s']
 
@@ -176,7 +181,12 @@ def _get_file_data_openrc(interfaces):
     network_data = '# Automatically generated, do not edit\n'
     network_data += 'modules="ifconfig"\n\n'
 
-    for ifname, interface in interfaces.iteritems():
+    ifnames = interfaces.keys()
+    ifnames.sort()
+
+    for ifname in ifnames:
+        interface = interfaces[ifname]
+
         ip4s = interface['ip4s']
         ip6s = interface['ip6s']
 

@@ -174,7 +174,12 @@ def _update_rc_conf_legacy(infile, interfaces):
 
     gateway4, gateway6 = commands.network.get_gateways(interfaces)
 
-    for ifname_prefix, interface in interfaces.iteritems():
+    ifnames = interfaces.keys()
+    ifnames.sort()
+
+    for ifname_prefix in ifnames:
+        interface = interfaces[ifname_prefix]
+
         ip4s = interface['ip4s']
         ip6s = interface['ip6s']
 
