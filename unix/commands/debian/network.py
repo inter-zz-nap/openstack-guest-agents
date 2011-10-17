@@ -137,9 +137,9 @@ def _get_current_interfaces():
     """Get the current list of interfaces ignoring lo"""
 
     if not os.path.exists(INTERFACE_FILE):
-        return []
+        return set()
 
-    interfaces = []
+    interfaces = set()
     with open(INTERFACE_FILE, 'r') as f:
         for line in f.readlines():
             line = line.strip().lstrip()
@@ -148,8 +148,8 @@ def _get_current_interfaces():
                     line.startswith('allow-hotplug'):
                 interface = line.split()[1]
                 if not interface.startswith('lo'):
-                    interfaces.append(interface)
-    return set(interfaces)
+                    interfaces.add(interface)
+    return interfaces
 
 
 def _run_on_interfaces(cmd):
