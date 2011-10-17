@@ -250,12 +250,15 @@ class NetworkCommands(commands.CommandBase):
             if not mac:
                 raise RuntimeError('No MAC found in config')
 
+            # by_macaddr is keyed using lower case hexadecimal
+            mac = mac.lower()
+
             ifconfig['mac'] = mac
 
             # 'label' used to be the method to determine which interface
             # this configuration applies to, but 'mac' is safer to use.
             # 'label' is being phased out now.
-            ifname = by_macaddr.get(interface['mac'])
+            ifname = by_macaddr.get(mac)
             if not ifname:
                 raise RuntimeError('Unknown interface MAC %s' %
                                    interface['mac'])
@@ -299,8 +302,8 @@ class NetworkCommands(commands.CommandBase):
                 ip['prefixlen'] = ip['netmask']
                 del ip['netmask']
 
-            ifconfig['ip4s'] = ipv4s
-            ifconfig['ip6s'] = ipv6s
+            ifconfig['ip4s'] = ip4s
+            ifconfig['ip6s'] = ip6s
 
             # Gateway (especially IPv6) can be interface specific
             gateway4 = interface.get('gateway')
@@ -345,7 +348,7 @@ def _get_etc_hosts(infile, interfaces, hostname):
 
         ip6s = interface['ip6s']
         if ip6s:
-            ips.add(ip6[0]['address'])
+            ips.add(ip6s[0]['address'])
 
     outfile = StringIO()
 
