@@ -60,8 +60,6 @@ def configure_network(hostname, interfaces):
         update_files[filepath] = data
 
     # Generate new hostname file
-    hostname = network_config.get('hostname')
-
     data = get_hostname_file(hostname)
     update_files[HOSTNAME_FILE] = data
 
