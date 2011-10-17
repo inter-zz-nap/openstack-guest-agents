@@ -73,102 +73,6 @@ INTERFACE_LABELS = {"public": "eth0",
 #INTERFACE_LABELS = {"public": "xn0",
 #                    "private": "xn1"}
 
-SIOCGIFCONF   = 0x8912
-SIOCGIFFLAGS  = 0x8913
-SIOCGIFHWADDR = 0x8927
-
-IFF_LOOPBACK  = 0x8
-
-IFNAMSIZ = 16
-
-
-class sockaddr(Structure):
-    _fields_ = [
-        ('sa_len', c_uint8),
-        ('sa_family', c_uint8),
-        ('sa_data', c_uint8 * 14)
-    ]
-
-
-class ifmap(Structure):
-    _fields_ = [
-        ('mem_start', c_long),
-        ('mem_end', c_long),
-        ('base_addr', c_short),
-        ('irq', c_char),
-        ('dma', c_char),
-        ('port', c_char),
-    ]
-
-
-class _ifreq(Union):
-    _fields_ = [
-        ('ifr_addr', sockaddr),
-        ('ifr_dstaddr', sockaddr),
-        ('ifr_broadaddr', sockaddr),
-        ('ifr_netmask', sockaddr),
-        ('ifr_hwaddr', sockaddr),
-        ('ifr_flags', c_short), 
-        ('ifr_ifindex', c_int),
-        ('ifr_metric', c_int),
-        ('ifr_mtu', c_int),  
-        ('ifr_map', ifmap),
-        ('ifr_slave', c_char * IFNAMSIZ),
-        ('ifr_newname', c_char * IFNAMSIZ),
-        ('ifr_data', c_char_p),  
-    ]
-
-
-class ifreq(Structure):
-    _fields_ = [
-        ('ifr_name', c_char * IFNAMSIZ),
-        ('u', _ifreq),
-    ]
-    _anonymous_ = ('u',)
-
-
-class _ifconf(Union):
-    _fields_ = [
-        ('ifc_buf', c_char_p),
-        ('ifc_req', POINTER(ifreq)),
-    ]
-
-
-class ifconf(Structure):
-    _fields_ = [
-        ('ifc_len', c_int),
-        ('u', _ifconf),
-    ]
-    _anonymous_ = ('u',)
-
-
-def network_interfaces():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
-
-    # Create array of ifreqs
-    maxifs = 32
-    ifrs = (ifreq * maxifs)()
-
-    # Create ifconf and point to ifrs
-    ifc = ifconf()
-    ifc.ifc_len = len(buffer(ifrs))
-    ifc.ifc_buf = cast(pointer(ifrs), c_char_p)
-
-    fcntl.ioctl(sock, SIOCGIFCONF, ifc)
-
-    numifrs = ifc.ifc_len / len(buffer(ifrs[0]))
-    for ifr in ifrs[:numifrs]:
-        if_name = ifr.ifr_name
-
-        fcntl.ioctl(sock, SIOCGIFFLAGS, ifr)
-
-        if ifr.ifr_flags & IFF_LOOPBACK:
-            continue
-
-        fcntl.ioctl(sock, SIOCGIFHWADDR, ifr)
-        mac_addr = ':'.join(['%02x' % i for i in ifr.ifr_hwaddr.sa_data[:6]])
-        yield (if_name, mac_addr)
-
 
 class NetworkCommands(commands.CommandBase):
 
@@ -239,7 +143,7 @@ class NetworkCommands(commands.CommandBase):
 
         # Normalize interfaces data. It can come in a couple of different
         # (similar) formats, none of which are convenient.
-        by_macaddr = dict([(m, n) for n, m in network_interfaces()])
+        by_macaddr = dict([(m, n) for n, m in agentlib.get_interfaces()])
 
         config = {}
 
@@ -260,8 +164,7 @@ class NetworkCommands(commands.CommandBase):
             # 'label' is being phased out now.
             ifname = by_macaddr.get(mac)
             if not ifname:
-                raise RuntimeError('Unknown interface MAC %s' %
-                                   interface['mac'])
+                raise RuntimeError('Unknown interface MAC %s' % mac)
 
             # List of IPv4 and IPv6 addresses
             ip4s = interface.get('ips', [])
