@@ -33,28 +33,23 @@ class TestFreeBSDRCConf(agent_test.TestCase):
     def test_ipv4_0_aliases(self):
         """Test setting public IPv4 for FreeBSD networking"""
 
-        interfaces = [
-                {"label":"public",
-                    "ips":[
-                        {"netmask":"255.255.255.0",
-                            "enabled":"1",
-                            "ip":"10.127.31.38"}],
-                    "mac":"40:40:8f:1e:a0:0a",
-                    "gateway":"10.127.31.1",
-                    "dns":["10.6.24.4", "10.6.24.5"]},
-                {"label":"private",
-                    "ips":[{
-                        "netmask":"255.255.224.0",
-                        "enabled":"1",
-                        "ip":"192.168.2.30"}],
-                    "routes":[
-                        {"route":"10.176.0.0",
-                            "netmask":"255.248.0.0",
-                            "gateway":"10.177.96.1"},
-                        {"route":"10.191.192.0",
-                            "netmask":"255.255.192.0",
-                            "gateway":"10.177.96.1"}],
-                    "mac":"40:40:a2:87:6e:26"}]
+        interfaces = {"xn0":{"ip4s":[{"address":"10.127.31.38",
+                                      "netmask":"255.255.255.0"}],
+                             "ip6s":[],
+                             "routes":[],
+                             "mac":"40:40:8f:1e:a0:0a",
+                             "gateway4":"10.127.31.1",
+                             "dns":["10.6.24.4", "10.6.24.5"]},
+                      "xn1":{"ip4s":[{"address":"192.168.2.30",
+                                      "netmask":"255.255.224.0"}],
+                             "ip6s":[],
+                             "routes":[{"network":"10.176.0.0",
+                                        "netmask":"255.248.0.0",
+                                        "gateway":"10.177.96.1"},
+                                       {"network":"10.191.192.0",
+                                        "netmask":"255.255.192.0",
+                                        "gateway":"10.177.96.1"}],
+                             "mac":"40:40:a2:87:6e:26"}}
 
         inputdata = '\n'.join([
             'hostname="oldhostname"',
@@ -95,34 +90,27 @@ class TestFreeBSDRCConf(agent_test.TestCase):
     def test_ipv4_2_aliases(self):
         """Test setting public IPv4 with an IP alias"""
 
-        interfaces = [
-                {"label":"public",
-                    "ips":[
-                        {"netmask":"255.255.255.0",
-                            "enabled":"1",
-                            "ip":"10.127.31.38"},
-                        {"netmask":"255.255.255.0",
-                            "enabled":"1",
-                            "ip":"10.127.32.38"},
-                        {"netmask":"255.255.255.255",
-                            "enabled":"1",
-                            "ip":"10.127.32.39"}],
-                    "mac":"40:40:8f:1e:a0:0a",
-                    "gateway":"10.127.31.1",
-                    "dns":["10.6.24.4", "10.6.24.5"]},
-                {"label":"private",
-                    "ips":[{
-                        "netmask":"255.255.224.0",
-                        "enabled":"1",
-                        "ip":"192.168.2.30"}],
-                    "routes":[
-                        {"route":"10.176.0.0",
-                            "netmask":"255.248.0.0",
-                            "gateway":"10.177.96.1"},
-                        {"route":"10.191.192.0",
-                            "netmask":"255.255.192.0",
-                            "gateway":"10.177.96.1"}],
-                    "mac":"40:40:a2:87:6e:26"}]
+        interfaces = {"xn0":{"ip4s":[{"address":"10.127.31.38",
+                                      "netmask":"255.255.255.0"},
+                                     {"address":"10.127.32.38",
+                                      "netmask":"255.255.255.0"},
+                                     {"address":"10.127.32.39",
+                                      "netmask":"255.255.255.255"}],
+                             "ip6s":[],
+                             "routes":[],
+                             "mac":"40:40:8f:1e:a0:0a",
+                             "gateway4":"10.127.31.1",
+                             "dns":["10.6.24.4", "10.6.24.5"]},
+                      "xn1":{"ip4s":[{"address":"192.168.2.30",
+                                      "netmask":"255.255.224.0"}],
+                             "ip6s":[],
+                             "routes":[{"network":"10.176.0.0",
+                                        "netmask":"255.248.0.0",
+                                        "gateway":"10.177.96.1"},
+                                       {"network":"10.191.192.0",
+                                        "netmask":"255.255.192.0",
+                                        "gateway":"10.177.96.1"}],
+                             "mac":"40:40:a2:87:6e:26"}}
 
         inputdata = '\n'.join([
             'hostname="oldhostname"',
@@ -165,33 +153,25 @@ class TestFreeBSDRCConf(agent_test.TestCase):
     def test_ipv4and6_0_aliases(self):
         """Test setting public IPv4 for FreeBSD networking"""
 
-        interfaces = [
-                {"label":"public",
-                    "ips":[
-                        {"netmask":"255.255.255.0",
-                            "enabled":"1",
-                            "ip":"10.127.31.38"}],
-                    "ip6s":[
-                        {"netmask":"96",
-                            "enabled":"1",
-                            "address":"ffff::2"}],
-                    "mac":"40:40:8f:1e:a0:0a",
-                    "gateway":"10.127.31.1",
-                    "gateway6":"ffff::1",
-                    "dns":["10.6.24.4", "10.6.24.5"]},
-                {"label":"private",
-                    "ips":[{
-                        "netmask":"255.255.224.0",
-                        "enabled":"1",
-                        "ip":"192.168.2.30"}],
-                    "routes":[
-                        {"route":"10.176.0.0",
-                            "netmask":"255.248.0.0",
-                            "gateway":"10.177.96.1"},
-                        {"route":"10.191.192.0",
-                            "netmask":"255.255.192.0",
-                            "gateway":"10.177.96.1"}],
-                    "mac":"40:40:a2:87:6e:26"}]
+        interfaces = {"xn0":{"ip4s":[{"address":"10.127.31.38",
+                                      "netmask":"255.255.255.0"}],
+                             "ip6s":[{"address":"ffff::2",
+                                      "prefixlen":"96"}],
+                             "routes":[],
+                             "mac":"40:40:8f:1e:a0:0a",
+                             "gateway4":"10.127.31.1",
+                             "gateway6":"ffff::1",
+                             "dns":["10.6.24.4", "10.6.24.5"]},
+                      "xn1":{"ip4s":[{"address":"192.168.2.30",
+                                      "netmask":"255.255.224.0"}],
+                             "ip6s":[],
+                             "routes":[{"network":"10.176.0.0",
+                                        "netmask":"255.248.0.0",
+                                        "gateway":"10.177.96.1"},
+                                       {"network":"10.191.192.0",
+                                        "netmask":"255.255.192.0",
+                                        "gateway":"10.177.96.1"}],
+                             "mac":"40:40:a2:87:6e:26"}}
 
         inputdata = '\n'.join([
             'hostname="oldhostname"',
@@ -236,45 +216,33 @@ class TestFreeBSDRCConf(agent_test.TestCase):
     def test_ipv4and6_2_aliases(self):
         """Test setting public IPv4 with an IP alias"""
 
-        interfaces = [
-                {"label":"public",
-                    "ips":[
-                        {"netmask":"255.255.255.0",
-                            "enabled":"1",
-                            "ip":"10.127.31.38"},
-                        {"netmask":"255.255.255.0",
-                            "enabled":"1",
-                            "ip":"10.127.32.38"},
-                        {"netmask":"255.255.255.255",
-                            "enabled":"1",
-                            "ip":"10.127.32.39"}],
-                    "ip6s":[
-                        {"netmask":"96",
-                            "enabled":"1",
-                            "address":"ffff::2"},
-                        {"netmask":"96",
-                            "enabled":"1",
-                            "address":"ffff::1:2"},
-                        {"netmask":"128",
-                            "enabled":"1",
-                            "address":"ffff::1:3"}],
-                    "mac":"40:40:8f:1e:a0:0a",
-                    "gateway":"10.127.31.1",
-                    "gateway6":"ffff::1",
-                    "dns":["10.6.24.4", "10.6.24.5"]},
-                {"label":"private",
-                    "ips":[{
-                        "netmask":"255.255.224.0",
-                        "enabled":"1",
-                        "ip":"192.168.2.30"}],
-                    "routes":[
-                        {"route":"10.176.0.0",
-                            "netmask":"255.248.0.0",
-                            "gateway":"10.177.96.1"},
-                        {"route":"10.191.192.0",
-                            "netmask":"255.255.192.0",
-                            "gateway":"10.177.96.1"}],
-                    "mac":"40:40:a2:87:6e:26"}]
+        interfaces = {"xn0":{"ip4s":[{"address":"10.127.31.38",
+                                      "netmask":"255.255.255.0"},
+                                     {"address":"10.127.32.38",
+                                    "netmask":"255.255.255.0"},
+                                   {"address":"10.127.32.39",
+                                    "netmask":"255.255.255.255"}],
+                             "ip6s":[{"address":"ffff::2",
+                                      "prefixlen":"96"},
+                                     {"address":"ffff::1:2",
+                                      "prefixlen":"96"},
+                                     {"address":"ffff::1:3",
+                                      "prefixlen":"128"}],
+                             "routes":[],
+                             "mac":"40:40:8f:1e:a0:0a",
+                             "gateway4":"10.127.31.1",
+                             "gateway6":"ffff::1",
+                             "dns":["10.6.24.4", "10.6.24.5"]},
+                      "xn1":{"ip4s":[{"address":"192.168.2.30",
+                                      "netmask":"255.255.224.0"}],
+                             "ip6s":[],
+                             "routes":[{"network":"10.176.0.0",
+                                        "netmask":"255.248.0.0",
+                                        "gateway":"10.177.96.1"},
+                                       {"network":"10.191.192.0",
+                                        "netmask":"255.255.192.0",
+                                        "gateway":"10.177.96.1"}],
+                             "mac":"40:40:a2:87:6e:26"}}
 
         inputdata = '\n'.join([
             'hostname="oldhostname"',

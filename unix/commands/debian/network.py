@@ -20,6 +20,13 @@
 debian/ubuntu network helper module
 """
 
+# Debian/Ubuntu network configuration uses:
+# - 1 network configuration file (/etc/network/interfaces)
+# - 1 IP per interface
+# - routes are per interface
+# - gateways are per interface
+# - DNS is per interface (but see comments below about /etc/resolv.conf)
+
 import logging
 import os
 import subprocess
@@ -29,7 +36,6 @@ from cStringIO import StringIO
 import commands.network
 
 HOSTNAME_FILE = "/etc/hostname"
-RESOLV_FILE = "/etc/resolv.conf"
 INTERFACE_FILE = "/etc/network/interfaces"
 
 INTERFACE_HEADER = \
@@ -41,21 +47,13 @@ auto lo
 iface lo inet loopback
 """.lstrip('\n')
 
-INTERFACE_LABELS = {"public": "eth0",
-                    "private": "eth1"}
 
-
-def configure_network(network_config):
-
+def configure_network(hostname, interfaces):
     # Generate new interface files
-    interfaces = network_config.get('interfaces', [])
-
     data = _get_file_data(interfaces)
     update_files = {INTERFACE_FILE: data}
 
     # Generate new hostname file
-    hostname = network_config.get('hostname')
-
     data = get_hostname_file(hostname)
     update_files[HOSTNAME_FILE] = data
 
@@ -64,8 +62,8 @@ def configure_network(network_config):
     # only updates /etc/resolv.conf if the 'resolvconf' package is
     # installed.  Let's go ahead and modify /etc/resolv.conf.  It's just
     # possible that it could get re-written twice.. oh well.
-    data = _get_resolv_conf(interfaces)
-    update_files[RESOLV_FILE] = data
+    filepath, data = commands.network.get_resolv_conf(interfaces)
+    update_files[filepath] = data
 
     # Generate new /etc/hosts file
     filepath, data = commands.network.get_etc_hosts(interfaces, hostname)
@@ -134,21 +132,6 @@ def get_hostname_file(hostname):
     return hostname + '\n'
 
 
-def _get_resolv_conf(interfaces):
-    resolv_data = ''
-    for interface in interfaces:
-        if interface['label'] != 'public':
-            continue
-
-        for nameserver in interface.get('dns', []):
-            resolv_data += 'nameserver %s\n' % nameserver
-
-    if not resolv_data:
-        return ''
-
-    return '# Automatically generated, do not edit\n' + resolv_data
-
-
 def _get_current_interfaces():
     """Get the current list of interfaces ignoring lo"""
 
@@ -193,123 +176,59 @@ def _get_file_data(interfaces):
 
     file_data = INTERFACE_HEADER
 
-    for interface in interfaces:
-        try:
-            label = interface['label']
-        except KeyError:
-            raise SystemError("No interface label found")
+    for ifname_prefix, interface in interfaces.iteritems():
+        ip4s = interface['ip4s']
+        ip6s = interface['ip6s']
 
-        try:
-            ifname_prefix = INTERFACE_LABELS[label]
-        except KeyError:
-            raise SystemError("Invalid label '%s'" % label)
+        gateway4 = interface['gateway4']
+        gateway6 = interface['gateway6']
 
-        try:
-            ips = interface['ips']
-        except KeyError:
-            raise SystemError("No IPs found for interface")
-
-        ip6s = interface.get('ip6s', [])
-
-        try:
-            mac = interface['mac']
-        except KeyError:
-            raise SystemError("No mac address found for interface")
-
-        try:
-            routes = interface['routes']
-        except KeyError:
-            routes = []
-
-        if label == "public":
-            gateway4 = interface.get('gateway')
-            gateway6 = interface.get('gateway6')
-            if not gateway4 and not gateway6:
-                raise SystemError("No gateway found for public interface")
-
-            try:
-                dns = interface['dns']
-            except KeyError:
-                raise SystemError("No DNS found for public interface")
-        else:
-            gateway4 = gateway6 = None
-            dns = None
+        dns = interface.get('dns', [])
 
         ifname_suffix_num = 0
 
-        for i in xrange(max(len(ips), len(ip6s))):
+        for i in xrange(max(len(ip4s), len(ip6s))):
             if ifname_suffix_num:
                 ifname = "%s:%d" % (ifname_prefix, ifname_suffix_num)
             else:
                 ifname = ifname_prefix
 
-            if i < len(ips):
-                ip_info = ips[i]
-            else:
-                ip_info = None
-
-            if i < len(ip6s):
-                ip6_info = ip6s[i]
-            else:
-                ip6_info = None
-
-            if not ip_info and not ip6_info:
-                continue
-
             file_data += "\n"
             file_data += "auto %s\n" % ifname
 
-            if ip_info and ip_info.get('enabled', '0') != '0':
-                try:
-                    ip = ip_info['ip']
-                    netmask = ip_info['netmask']
-                except KeyError:
-                    raise SystemError(
-                            "Missing IP or netmask in interface's IP list")
+            if i < len(ip4s):
+                ip = ip4s[i]
 
                 file_data += "iface %s inet static\n" % ifname
-                file_data += "    address %s\n" % ip
-                file_data += "    netmask %s\n" % netmask
+                file_data += "    address %s\n" % ip['address']
+                file_data += "    netmask %s\n" % ip['netmask']
+
                 if gateway4:
                     file_data += "    gateway %s\n" % gateway4
                     gateway4 = None
-                if dns:
-                    file_data += "    dns-nameservers %s\n" % ' '.join(dns)
-                    dns = None
 
-            if ip6_info and ip6_info.get('enabled', '0') != '0':
-                ip = ip6_info.get('address', ip6_info.get('ip'))
-                if not ip:
-                    raise SystemError(
-                            "Missing IP in interface's IPv6 list")
-                netmask = ip6_info.get('netmask')
-                if not netmask:
-                    raise SystemError(
-                            "Missing netmask in interface's IPv6 list")
-
-                gateway6 = ip6_info.get('gateway', gateway6)
+            if i < len(ip6s):
+                ip = ip6s[i]
 
                 file_data += "iface %s inet6 static\n" % ifname
-                file_data += "    address %s\n" % ip
-                file_data += "    netmask %s\n" % netmask
+                file_data += "    address %s\n" % ip['address']
+                file_data += "    netmask %s\n" % ip['prefixlen']
+
                 if gateway6:
                     file_data += "    gateway %s\n" % gateway6
                     gateway6 = None
-                if dns:
-                    file_data += "    dns-nameservers %s\n" % ' '.join(dns)
-                    dns = None
+
+            if dns:
+                file_data += "    dns-nameservers %s\n" % ' '.join(dns)
+                dns = None
 
             ifname_suffix_num += 1
 
-        for route in routes:
-            network = route['route']
-            netmask = route['netmask']
-            gateway = route['gateway']
-
-            file_data += "up route add -net %s netmask %s gw %s\n" % (
-                    network, netmask, gateway)
-            file_data += "down route del -net %s netmask %s gw %s\n" % (
-                    network, netmask, gateway)
+        for route in interface['routes']:
+            file_data += "up route add -net %(network)s " \
+                         "netmask %(netmask)s gw %(gateway)s\n" % route
+            file_data += "down route del -net %(network)s " \
+                         "netmask %(netmask)s gw %(gateway)s\n" % route
 
     return file_data
 

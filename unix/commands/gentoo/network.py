@@ -20,6 +20,18 @@
 gentoo network helper module
 """
 
+# Gentoo has two different kinds of network configuration. More recently,
+# there's 'openrc' and previously (for lack of a better term) 'legacy'.
+# They are fairly similar, the differences being more implementation
+# defined (bash vs sh, etc).
+#
+# They both use:
+# - 1 shell-script-style network configuration (/etc/conf.d/net)
+# - multiple IPs per interface
+# - routes are per interface
+# - gateways are per interface
+# - DNS is configured via resolv.conf
+
 import os
 import re
 import time
@@ -31,17 +43,9 @@ import commands.network
 
 HOSTNAME_FILE = "/etc/conf.d/hostname"
 NETWORK_FILE = "/etc/conf.d/net"
-RESOLV_FILE = "/etc/resolv.conf"
-
-INTERFACE_LABELS = {"public": "eth0",
-                    "private": "eth1"}
 
 
-def configure_network(network_config, *args, **kwargs):
-
-    # Generate new interface files
-    interfaces = network_config.get('interfaces', [])
-
+def configure_network(hostname, interfaces):
     # Figure out if this system is running OpenRC
     if os.path.islink('/sbin/runscript'):
         data, ifaces = _get_file_data_openrc(interfaces)
@@ -51,8 +55,8 @@ def configure_network(network_config, *args, **kwargs):
     update_files = {NETWORK_FILE: data}
 
     # Generate new /etc/resolv.conf file
-    data = _get_resolv_conf(interfaces)
-    update_files[RESOLV_FILE] = data
+    filepath, data = commands.network.get_resolv_conf(interfaces)
+    update_files[filepath] = data
 
     # Generate new hostname file
     hostname = network_config.get('hostname')
@@ -107,21 +111,6 @@ def _parse_variable(line):
     return [name.lstrip('!') for name in re.split('\s+', v.strip())]
 
 
-def _get_resolv_conf(interfaces):
-    resolv_data = ''
-    for interface in interfaces:
-        if interface['label'] != 'public':
-            continue
-
-        for nameserver in interface.get('dns', []):
-            resolv_data += 'nameserver %s\n' % nameserver
-
-    if not resolv_data:
-        return ''
-
-    return '# Automatically generated, do not edit\n' + resolv_data
-
-
 def _get_file_data_legacy(interfaces):
     """
     Return data for (sub-)interfaces and routes
@@ -132,86 +121,29 @@ def _get_file_data_legacy(interfaces):
     network_data = '# Automatically generated, do not edit\n'
     network_data += 'modules=( "ifconfig" )\n\n'
 
-    for interface in interfaces:
-        try:
-            label = interface['label']
-        except KeyError:
-            raise SystemError("No interface label found")
+    for ifname, interface in interfaces.iteritems():
+        ip4s = interface['ip4s']
+        ip6s = interface['ip6s']
 
-        try:
-            ifname = INTERFACE_LABELS[label]
-        except KeyError:
-            raise SystemError("Invalid label '%s'" % label)
-
-        ip4s = interface.get('ips', [])
-        ip6s = interface.get('ip6s', [])
-
-        if not ip4s and not ip6s:
-            raise SystemError("No IPs found for interface")
-
-        try:
-            mac = interface['mac']
-        except KeyError:
-            raise SystemError("No mac address found for interface")
-
-        if label == "public":
-            gateway4 = interface.get('gateway')
-            gateway6 = interface.get('gateway6')
-
-            if not gateway4 and not gateway6:
-                raise SystemError("No gateway found for public interface")
-
-            try:
-                dns = interface['dns']
-            except KeyError:
-                raise SystemError("No DNS found for public interface")
-        else:
-            gateway4 = gateway6 = None
+        gateway4 = interface['gateway4']
+        gateway6 = interface['gateway6']
 
         network_data += 'config_%s=(\n' % ifname
 
-        for ip_info in ip4s:
-            enabled = ip_info.get('enabled', '0')
-            if enabled != '1':
-                continue
+        for ip in ip4s:
+            network_data += '    "%s netmask %s"\n' % \
+                    (ip['address'], ip['netmask'])
 
-            try:
-                ip = ip_info['ip']
-                netmask = ip_info['netmask']
-            except KeyError:
-                raise SystemError(
-                        "Missing IP or netmask in interface's IP list")
-
-            network_data += '    "%s netmask %s"\n' % (ip, netmask)
-
-        for ip_info in ip6s:
-            enabled = ip_info.get('enabled', '0')
-            if enabled != '1':
-                continue
-
-            ip = ip_info.get('address', ip_info.get('ip'))
-            if not ip:
-                raise SystemError(
-                        "Missing IP in interface's IP list")
-            netmask = ip_info.get('netmask')
-            if not netmask:
-                raise SystemError(
-                        "Missing netmask in interface's IP list")
-
-            if not gateway6:
-                gateway6 = ip_info.get('gateway', gateway6)
-
-            network_data += '    "%s/%s"\n' % (ip, netmask)
+        for ip in ip6s:
+            network_data += '    "%s/%s"\n' % \
+                    (ip['address'], ip['prefixlen'])
 
         network_data += ')\n'
 
         routes = []
-        for route in interface.get('routes', []):
-            network = route['route']
-            netmask = route['netmask']
-            gateway = route['gateway']
-
-            routes.append('%s netmask %s via %s' % (ip, netmask, gateway))
+        for route in interface['routes']:
+            routes.append('%(network)s netmask %(netmask)s via %(gateway)s' %
+                          route)
 
         if gateway4:
             routes.append('default via %s' % gateway4)
@@ -239,86 +171,28 @@ def _get_file_data_openrc(interfaces):
     network_data = '# Automatically generated, do not edit\n'
     network_data += 'modules="ifconfig"\n\n'
 
-    for interface in interfaces:
-        try:
-            label = interface['label']
-        except KeyError:
-            raise SystemError("No interface label found")
+    for ifname, interface in interfaces.iteritems():
+        ip4s = interface['ip4s']
+        ip6s = interface['ip6s']
 
-        try:
-            ifname = INTERFACE_LABELS[label]
-        except KeyError:
-            raise SystemError("Invalid label '%s'" % label)
-
-        ip4s = interface.get('ips', [])
-        ip6s = interface.get('ip6s', [])
-
-        if not ip4s and not ip6s:
-            raise SystemError("No IPs found for interface")
-
-        try:
-            mac = interface['mac']
-        except KeyError:
-            raise SystemError("No mac address found for interface")
-
-        if label == "public":
-            gateway4 = interface.get('gateway')
-            gateway6 = interface.get('gateway6')
-
-            if not gateway4 and not gateway6:
-                raise SystemError("No gateway found for public interface")
-
-            try:
-                dns = interface['dns']
-            except KeyError:
-                raise SystemError("No DNS found for public interface")
-        else:
-            gateway4 = gateway6 = None
+        gateway4 = interface['gateway4']
+        gateway6 = interface['gateway6']
 
         iface_data = []
 
-        for ip_info in ip4s:
-            enabled = ip_info.get('enabled', '0')
-            if enabled != '1':
-                continue
+        for ip in ip4s:
+            iface_data.append('%s netmask %s' %
+                              (ip['address'], ip['netmask']))
 
-            try:
-                ip = ip_info['ip']
-                netmask = ip_info['netmask']
-            except KeyError:
-                raise SystemError(
-                        "Missing IP or netmask in interface's IP list")
-
-            iface_data.append('%s netmask %s' % (ip, netmask))
-
-        for ip_info in ip6s:
-            enabled = ip_info.get('enabled', '0')
-            if enabled != '1':
-                continue
-
-            ip = ip_info.get('address', ip_info.get('ip'))
-            if not ip:
-                raise SystemError(
-                        "Missing IP in interface's IP list")
-            netmask = ip_info.get('netmask')
-            if not netmask:
-                raise SystemError(
-                        "Missing netmask in interface's IP list")
-
-            if not gateway6:
-                gateway6 = ip_info.get('gateway', gateway6)
-
-            iface_data.append('%s/%s' % (ip, netmask))
+        for ip in ip6s:
+            iface_data.append('%s/%s' % (ip['address'], ip['prefixlen']))
 
         network_data += 'config_%s="%s"\n' % (ifname, '\n'.join(iface_data))
 
         route_data = []
-        for route in interface.get('routes', []):
-            network = route['route']
-            netmask = route['netmask']
-            gateway = route['gateway']
-
-            route_data.append('%s netmask %s via %s' % (ip, netmask, gateway))
+        for route in interface['routes']:
+            route_data.append('%(network)s netmask %(netmask)s '
+                              'via %(gateway)s' % route)
 
         if gateway4:
             route_data.append('default via %s' % gateway4)

@@ -40,12 +40,15 @@ except ImportError:
             return json.loads(buf)
 
 from cStringIO import StringIO
+import fcntl
 import logging
 import os
 import platform
 import pyxenstore
 import re
+import socket
 import time
+from ctypes import *
 
 import agentlib
 import commands
@@ -61,6 +64,110 @@ XENSTORE_INTERFACE_PATH = "vm-data/networking"
 XENSTORE_HOSTNAME_PATH = "vm-data/hostname"
 DEFAULT_HOSTNAME = ''
 HOSTS_FILE = '/etc/hosts'
+RESOLV_CONF_FILE = '/etc/resolv.conf'
+
+INTERFACE_LABELS = {"public": "eth0",
+                    "private": "eth1"}
+
+# FIXME: Use these interface names for FreeBSD
+#INTERFACE_LABELS = {"public": "xn0",
+#                    "private": "xn1"}
+
+SIOCGIFCONF   = 0x8912
+SIOCGIFFLAGS  = 0x8913
+SIOCGIFHWADDR = 0x8927
+
+IFF_LOOPBACK  = 0x8
+
+IFNAMSIZ = 16
+
+
+class sockaddr(Structure):
+    _fields_ = [
+        ('sa_len', c_uint8),
+        ('sa_family', c_uint8),
+        ('sa_data', c_uint8 * 14)
+    ]
+
+
+class ifmap(Structure):
+    _fields_ = [
+        ('mem_start', c_long),
+        ('mem_end', c_long),
+        ('base_addr', c_short),
+        ('irq', c_char),
+        ('dma', c_char),
+        ('port', c_char),
+    ]
+
+
+class _ifreq(Union):
+    _fields_ = [
+        ('ifr_addr', sockaddr),
+        ('ifr_dstaddr', sockaddr),
+        ('ifr_broadaddr', sockaddr),
+        ('ifr_netmask', sockaddr),
+        ('ifr_hwaddr', sockaddr),
+        ('ifr_flags', c_short), 
+        ('ifr_ifindex', c_int),
+        ('ifr_metric', c_int),
+        ('ifr_mtu', c_int),  
+        ('ifr_map', ifmap),
+        ('ifr_slave', c_char * IFNAMSIZ),
+        ('ifr_newname', c_char * IFNAMSIZ),
+        ('ifr_data', c_char_p),  
+    ]
+
+
+class ifreq(Structure):
+    _fields_ = [
+        ('ifr_name', c_char * IFNAMSIZ),
+        ('u', _ifreq),
+    ]
+    _anonymous_ = ('u',)
+
+
+class _ifconf(Union):
+    _fields_ = [
+        ('ifc_buf', c_char_p),
+        ('ifc_req', POINTER(ifreq)),
+    ]
+
+
+class ifconf(Structure):
+    _fields_ = [
+        ('ifc_len', c_int),
+        ('u', _ifconf),
+    ]
+    _anonymous_ = ('u',)
+
+
+def network_interfaces():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
+
+    # Create array of ifreqs
+    maxifs = 32
+    ifrs = (ifreq * maxifs)()
+
+    # Create ifconf and point to ifrs
+    ifc = ifconf()
+    ifc.ifc_len = len(buffer(ifrs))
+    ifc.ifc_buf = cast(pointer(ifrs), c_char_p)
+
+    fcntl.ioctl(sock, SIOCGIFCONF, ifc)
+
+    numifrs = ifc.ifc_len / len(buffer(ifrs[0]))
+    for ifr in ifrs[:numifrs]:
+        if_name = ifr.ifr_name
+
+        fcntl.ioctl(sock, SIOCGIFFLAGS, ifr)
+
+        if ifr.ifr_flags & IFF_LOOPBACK:
+            continue
+
+        fcntl.ioctl(sock, SIOCGIFHWADDR, ifr)
+        mac_addr = ':'.join(['%02x' % i for i in ifr.ifr_hwaddr.sa_data[:6]])
+        yield (if_name, mac_addr)
 
 
 class NetworkCommands(commands.CommandBase):
@@ -130,23 +237,115 @@ class NetworkCommands(commands.CommandBase):
 
         del xs_handle
 
-        data = {"hostname": hostname, "interfaces": interfaces}
+        # Normalize interfaces data. It can come in a couple of different
+        # (similar) formats, none of which are convenient.
+        by_macaddr = dict([(m, n) for n, m in network_interfaces()])
 
-        return os_mod.network.configure_network(data)
+        config = {}
+
+        for interface in interfaces:
+            ifconfig = {}
+
+            mac = interface.get('mac')
+            if not mac:
+                raise RuntimeError('No MAC found in config')
+
+            ifconfig['mac'] = mac
+
+            # 'label' used to be the method to determine which interface
+            # this configuration applies to, but 'mac' is safer to use.
+            # 'label' is being phased out now.
+            ifname = by_macaddr.get(interface['mac'])
+            if not ifname:
+                raise RuntimeError('Unknown interface MAC %s' %
+                                   interface['mac'])
+
+            # List of IPv4 and IPv6 addresses
+            ip4s = interface.get('ips', [])
+            ip6s = interface.get('ip6s', [])
+            if not ip4s and not ip6s:
+                raise RuntimeError('No IPs found for interface')
+
+            # Filter out any IPs that aren't enabled
+            ip4s = filter(lambda i: i.get('enabled', '0') != '0', ip4s)
+            ip6s = filter(lambda i: i.get('enabled', '0') != '0', ip6s)
+
+            # Validate and normalize IPv4 and IPv6 addresses
+            for ip in ip4s:
+                if 'ip' not in ip:
+                    raise RuntimeError("Missing 'ip' key for IPv4 address")
+                if 'netmask' not in ip:
+                    raise RuntimeError("Missing 'netmask' key for IPv4 address")
+
+                # Rename 'ip' to 'address' to be more specific
+                ip['address'] = ip['ip']
+                del ip['ip']
+
+            for ip in ip6s:
+                if 'ip' not in ip and 'address' not in ip:
+                    raise RuntimeError("Missing 'ip' or 'address' key for IPv6 address")
+                if 'netmask' not in ip:
+                    raise RuntimeError("Missing 'netmask' key for IPv6 address")
+
+                # FIXME: Should we fail if both 'ip' and 'address' are
+                # specified but differ?
+
+                # Rename 'ip' to 'address' to be more specific
+                if 'address' not in ip:
+                    ip['address'] = ip['ip']
+                    del ip['ip']
+
+                # Rename 'netmask' to 'prefixlen' to be more accurate
+                ip['prefixlen'] = ip['netmask']
+                del ip['netmask']
+
+            ifconfig['ip4s'] = ipv4s
+            ifconfig['ip6s'] = ipv6s
+
+            # Gateway (especially IPv6) can be interface specific
+            gateway4 = interface.get('gateway')
+            gateway6 = interface.get('gateway6')
+
+            ifconfig['gateway4'] = gateway4
+            ifconfig['gateway6'] = gateway6
+
+            # Routes are optional
+            routes = interface.get('routes', [])
+
+            # Validate and normalize routes
+            for route in routes:
+                if 'route' not in route:
+                    raise RuntimeError("Missing 'route' key for route")
+                if 'netmask' not in route:
+                    raise RuntimeError("Missing 'netmask' key for route")
+                if 'gateway' not in route:
+                    raise RuntimeError("Missing 'gateway' key for route")
+
+                # Rename 'route' to 'network' to be more specific
+                route['network'] = route['route']
+                del route['route']
+
+            ifconfig['routes'] = routes
+
+            config[ifname] = ifconfig
+
+        # TODO: Should we fail if there isn't at least one gateway specified?
+        #if not gateway4 and not gateway6:
+        #    raise RuntimeError('No gateway found for public interface')
+
+        return os_mod.network.configure_network(hostname, config)
 
 
 def _get_etc_hosts(infile, interfaces, hostname):
     ips = set()
-    for interface in interfaces:
-        if not ips and interface['label'] == 'public':
-            ip4s = interface.get('ips')
-            if ip4s:
-                ips.add(ip4s[0]['ip'])
+    for interface in interfaces.itervalues():
+        ip4s = interface['ip4s']
+        if ip4s:
+            ips.add(ip4s[0]['address'])
 
-            ip6s = interface.get('ip6s')
-            if ip6s:
-                ip6 = ip6s[0]
-                ips.add(ip6.get('address', ip6.get('ip')))
+        ip6s = interface['ip6s']
+        if ip6s:
+            ips.add(ip6[0]['address'])
 
     outfile = StringIO()
 
@@ -202,6 +401,48 @@ def get_etc_hosts(interfaces, hostname):
         infile = StringIO()
 
     return HOSTS_FILE, _get_etc_hosts(infile, interfaces, hostname)
+
+
+def get_gateways(interfaces):
+    gateway4s = []
+    gateway6s = []
+
+    for interface in interfaces.itervalues():
+        gateway = interface.get('gateway4')
+        if gateway:
+            gateway4s.append(gateway)
+
+        gateway = interface.get('gateway6')
+        if gateway:
+            gateway6s.append(gateway)
+
+    if len(gateway4s) > 1:
+        raise RuntimeError("Multiple IPv4 default routes specified")
+    if len(gateway6s) > 1:
+        raise RuntimeError("Multiple IPv6 default routes specified")
+
+    gateway4 = gateway4s and gateway4s[0] or None
+    gateway6 = gateway6s and gateway6s[0] or None
+
+    return gateway4, gateway6
+
+
+def get_nameservers(interfaces):
+    for interface in interfaces.itervalues():
+        for nameserver in interface.get('dns', []):
+            yield nameserver
+
+
+def get_resolv_conf(interfaces):
+    resolv_data = ''
+    for nameserver in get_nameservers(interfaces):
+        resolv_data += 'nameserver %s\n' % nameserver
+
+    if not resolv_data:
+        return ''
+
+    return RESOLV_CONF_FILE, '# Automatically generated, do not edit\n' + \
+                             resolv_data
 
 
 def sethostname(hostname):

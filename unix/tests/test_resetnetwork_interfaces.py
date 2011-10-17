@@ -33,33 +33,33 @@ import commands.suse.network
 
 class TestInterfacesUpdates(agent_test.TestCase):
 
-    def _run_test(self, dist, infiles=None, version=None, **config):
-        interfaces = []
-        for label, options in config.iteritems():
-            interface = {'label': label, 'mac': options['hwaddr']}
+    def _run_test(self, dist, infiles=None, version=None, **configs):
+        interfaces = {}
+        for ifname, options in configs.iteritems():
+            interface = {'mac': options['hwaddr']}
 
             ip4s = []
             for ip, netmask in options.get('ipv4', []):
-                ip4s.append({'enabled': '1', 'ip': ip, 'netmask': netmask})
-            interface['ips'] = ip4s
+                ip4s.append({'address': ip,
+                             'netmask': netmask})
+            interface['ip4s'] = ip4s
 
-            if options.get('gateway4'):
-                interface['gateway'] = options['gateway4']
+            interface['gateway4'] = options.get('gateway4')
 
             ip6s = []
             for ip, netmask in options.get('ipv6', []):
-                ip6s.append({'enabled': '1',
-                    'address': ip,
-                    'netmask': netmask})
+                ip6s.append({'address': ip,
+                             'prefixlen': netmask})
             interface['ip6s'] = ip6s
 
-            if options.get('gateway6'):
-                interface['gateway6'] = options['gateway6']
+            interface['gateway6'] = options.get('gateway6')
 
             if options.get('dns'):
                 interface['dns'] = options['dns']
 
-            interfaces.append(interface)
+            interface['routes'] = []
+
+            interfaces[ifname] = interface
 
         kwargs = {}
         if version:
@@ -79,7 +79,7 @@ class TestInterfacesUpdates(agent_test.TestCase):
             'gateway4': '192.0.2.1',
             'dns': ['192.0.2.2'],
         }
-        outfiles = self._run_test('redhat', public=interface)
+        outfiles = self._run_test('redhat', eth0=interface)
         self.assertTrue('ifcfg-eth0' in outfiles)
         self.assertEqual(outfiles['ifcfg-eth0'], '\n'.join([
             '# Automatically generated, do not edit',
@@ -102,7 +102,7 @@ class TestInterfacesUpdates(agent_test.TestCase):
             'gateway6': '2001:db8::1',
             'dns': ['2001:db8::2'],
         }
-        outfiles = self._run_test('redhat', public=interface)
+        outfiles = self._run_test('redhat', eth0=interface)
         self.assertTrue('ifcfg-eth0' in outfiles)
         self.assertEqual(outfiles['ifcfg-eth0'], '\n'.join([
             '# Automatically generated, do not edit',
@@ -125,7 +125,7 @@ class TestInterfacesUpdates(agent_test.TestCase):
             'gateway4': '192.0.2.1',
             'dns': ['192.0.2.2'],
         }
-        outfiles = self._run_test('debian', public=interface)
+        outfiles = self._run_test('debian', eth0=interface)
         self.assertTrue('interfaces' in outfiles)
         self.assertEqual(outfiles['interfaces'], '\n'.join([
             '# Used by ifup(8) and ifdown(8). See the interfaces(5) '
@@ -150,7 +150,7 @@ class TestInterfacesUpdates(agent_test.TestCase):
             'gateway6': '2001:db8::1',
             'dns': ['2001:db8::2'],
         }
-        outfiles = self._run_test('debian', public=interface)
+        outfiles = self._run_test('debian', eth0=interface)
         self.assertTrue('interfaces' in outfiles)
         self.assertEqual(outfiles['interfaces'], '\n'.join([
             '# Used by ifup(8) and ifdown(8). See the interfaces(5) '
@@ -182,7 +182,7 @@ class TestInterfacesUpdates(agent_test.TestCase):
             'gateway4': '192.0.2.1',
             'dns': ['192.0.2.2'],
         }
-        outfiles = self._run_test('arch', infiles, public=interface,
+        outfiles = self._run_test('arch', infiles, eth0=interface,
                                   version='legacy')
         self.assertTrue('/etc/rc.conf' in outfiles)
         self.assertEqual(outfiles['/etc/rc.conf'], '\n'.join([
@@ -206,7 +206,7 @@ class TestInterfacesUpdates(agent_test.TestCase):
             'gateway6': '2001:db8::1',
             'dns': ['2001:db8::2'],
         }
-        outfiles = self._run_test('arch', infiles, public=interface,
+        outfiles = self._run_test('arch', infiles, eth0=interface,
                                   version='legacy')
         self.assertTrue('/etc/rc.conf' in outfiles)
         self.assertEqual(outfiles['/etc/rc.conf'], '\n'.join([
@@ -228,7 +228,7 @@ class TestInterfacesUpdates(agent_test.TestCase):
             'gateway4': '192.0.2.1',
             'dns': ['192.0.2.2'],
         }
-        outfiles = self._run_test('arch', infiles, public=interface,
+        outfiles = self._run_test('arch', infiles, eth0=interface,
                                   version='netcfg')
         self.assertTrue('/etc/rc.conf' in outfiles)
         self.assertEqual(outfiles['/etc/rc.conf'], '\n'.join([
@@ -257,7 +257,7 @@ class TestInterfacesUpdates(agent_test.TestCase):
             'gateway6': '2001:db8::1',
             'dns': ['2001:db8::2'],
         }
-        outfiles = self._run_test('arch', infiles, public=interface,
+        outfiles = self._run_test('arch', infiles, eth0=interface,
                                   version='netcfg')
         self.assertTrue('/etc/rc.conf' in outfiles)
         self.assertEqual(outfiles['/etc/rc.conf'], '\n'.join([
@@ -279,7 +279,7 @@ class TestInterfacesUpdates(agent_test.TestCase):
             'gateway4': '192.0.2.1',
             'dns': ['192.0.2.2'],
         }
-        outfiles = self._run_test('gentoo', public=interface, version='legacy')
+        outfiles = self._run_test('gentoo', eth0=interface, version='legacy')
         self.assertTrue('net' in outfiles)
         self.assertEqual(outfiles['net'], '\n'.join([
             '# Automatically generated, do not edit',
@@ -300,7 +300,7 @@ class TestInterfacesUpdates(agent_test.TestCase):
             'gateway6': '2001:db8::1',
             'dns': ['2001:db8::2'],
         }
-        outfiles = self._run_test('gentoo', public=interface, version='legacy')
+        outfiles = self._run_test('gentoo', eth0=interface, version='legacy')
         self.assertTrue('net' in outfiles)
         self.assertEqual(outfiles['net'], '\n'.join([
             '# Automatically generated, do not edit',
@@ -321,7 +321,7 @@ class TestInterfacesUpdates(agent_test.TestCase):
             'gateway4': '192.0.2.1',
             'dns': ['192.0.2.2'],
         }
-        outfiles = self._run_test('gentoo', public=interface, version='openrc')
+        outfiles = self._run_test('gentoo', eth0=interface, version='openrc')
         self.assertTrue('net' in outfiles)
         self.assertEqual(outfiles['net'], '\n'.join([
             '# Automatically generated, do not edit',
@@ -338,7 +338,7 @@ class TestInterfacesUpdates(agent_test.TestCase):
             'gateway6': '2001:db8::1',
             'dns': ['2001:db8::2'],
         }
-        outfiles = self._run_test('gentoo', public=interface, version='openrc')
+        outfiles = self._run_test('gentoo', eth0=interface, version='openrc')
         self.assertTrue('net' in outfiles)
         self.assertEqual(outfiles['net'], '\n'.join([
             '# Automatically generated, do not edit',
@@ -355,7 +355,7 @@ class TestInterfacesUpdates(agent_test.TestCase):
             'gateway4': '192.0.2.1',
             'dns': ['192.0.2.2'],
         }
-        outfiles = self._run_test('suse', public=interface)
+        outfiles = self._run_test('suse', eth0=interface)
         self.assertTrue('ifcfg-eth0' in outfiles)
         self.assertEqual(outfiles['ifcfg-eth0'], '\n'.join([
             "# Automatically generated, do not edit",
@@ -373,7 +373,7 @@ class TestInterfacesUpdates(agent_test.TestCase):
             'gateway6': '2001:db8::1',
             'dns': ['2001:db8::2'],
         }
-        outfiles = self._run_test('suse', public=interface)
+        outfiles = self._run_test('suse', eth0=interface)
         self.assertTrue('ifcfg-eth0' in outfiles)
         self.assertEqual(outfiles['ifcfg-eth0'], '\n'.join([
             "# Automatically generated, do not edit",
