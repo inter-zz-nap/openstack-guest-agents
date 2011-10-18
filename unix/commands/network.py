@@ -66,12 +66,12 @@ DEFAULT_HOSTNAME = ''
 HOSTS_FILE = '/etc/hosts'
 RESOLV_CONF_FILE = '/etc/resolv.conf'
 
-INTERFACE_LABELS = {"public": "eth0",
-                    "private": "eth1"}
-
-# FIXME: Use these interface names for FreeBSD
-#INTERFACE_LABELS = {"public": "xn0",
-#                    "private": "xn1"}
+if os.uname()[0].lower() == 'freebsd':
+    INTERFACE_LABELS = {"public": "xn0",
+                        "private": "xn1"}
+else:
+    INTERFACE_LABELS = {"public": "eth0",
+                        "private": "eth1"}
 
 
 class NetworkCommands(commands.CommandBase):
