@@ -160,8 +160,8 @@ def _get_file_data(ifname, interface):
             iface_data += "PREFIXLEN='%s'\n" % ip['prefixlen']
             ifnum = 0
         else:
-            iface_data += "IPADDR_%s='%s'\n" % (ifnum, ip)
-            iface_data += "PREFIXLEN_%s='%s'\n" % (ifnum, netmask)
+            iface_data += "IPADDR_%s='%s'\n" % (ifnum, ip['address'])
+            iface_data += "PREFIXLEN_%s='%s'\n" % (ifnum, ip['prefixlen'])
             iface_data += "LABEL_%s='%s'\n" % (ifnum, ifnum)
             ifnum += 1
 
