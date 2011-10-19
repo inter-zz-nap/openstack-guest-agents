@@ -177,8 +177,15 @@ class NetworkCommands(commands.CommandBase):
             gateway6 = interface.get('gateway6')
 
             # Filter out any IPs that aren't enabled
-            ip4s = filter(lambda i: i.get('enabled', '0') != '0', ip4s)
-            ip6s = filter(lambda i: i.get('enabled', '0') != '0', ip6s)
+            for ip in ip4s + ip6s:
+                try:
+                    ip['enabled'] = int(ip.get('enabled', 0))
+                except ValueError:
+                    raise RuntimeError('Invalid value %r for 'enabled' key' %
+                                       ip.get('enabled'))
+
+            ip4s = filter(lambda i: i['enabled'], ip4s)
+            ip6s = filter(lambda i: i['enabled'], ip6s)
 
             # Validate and normalize IPv4 and IPv6 addresses
             for ip in ip4s:
