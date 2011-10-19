@@ -188,8 +188,7 @@ class NetworkCommands(commands.CommandBase):
                     raise RuntimeError("Missing 'netmask' key for IPv4 address")
 
                 # Rename 'ip' to 'address' to be more specific
-                ip['address'] = ip['ip']
-                del ip['ip']
+                ip['address'] = ip.pop('ip')
 
             for ip in ip6s:
                 if 'ip' not in ip and 'address' not in ip:
@@ -199,20 +198,17 @@ class NetworkCommands(commands.CommandBase):
 
                 if 'gateway' in ip:
                     # FIXME: Should we fail if gateway6 is already set?
-                    gateway6 = ip['gateway']
-                    del ip['gateway']
+                    gateway6 = ip.pop('gateway')
 
                 # FIXME: Should we fail if both 'ip' and 'address' are
                 # specified but differ?
 
                 # Rename 'ip' to 'address' to be more specific
                 if 'address' not in ip:
-                    ip['address'] = ip['ip']
-                    del ip['ip']
+                    ip['address'] = ip.pop('ip')
 
                 # Rename 'netmask' to 'prefixlen' to be more accurate
-                ip['prefixlen'] = ip['netmask']
-                del ip['netmask']
+                ip['prefixlen'] = ip.pop('netmask')
 
             ifconfig['ip4s'] = ip4s
             ifconfig['ip6s'] = ip6s
@@ -233,8 +229,7 @@ class NetworkCommands(commands.CommandBase):
                     raise RuntimeError("Missing 'gateway' key for route")
 
                 # Rename 'route' to 'network' to be more specific
-                route['network'] = route['route']
-                del route['route']
+                route['network'] = route.pop('route')
 
             ifconfig['routes'] = routes
 
