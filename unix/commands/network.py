@@ -181,7 +181,7 @@ class NetworkCommands(commands.CommandBase):
                 try:
                     ip['enabled'] = int(ip.get('enabled', 0))
                 except ValueError:
-                    raise RuntimeError('Invalid value %r for 'enabled' key' %
+                    raise RuntimeError("Invalid value %r for 'enabled' key" %
                                        ip.get('enabled'))
 
             ip4s = filter(lambda i: i['enabled'], ip4s)
