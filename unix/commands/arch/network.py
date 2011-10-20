@@ -185,22 +185,18 @@ def _update_rc_conf_legacy(infile, interfaces):
 
         ifname_suffix_num = 0
 
-        for i in xrange(max(len(ip4s), len(ip6s))):
+        for ip4, ip6 in map(None, ip4s, ip6s):
             if ifname_suffix_num:
                 ifname = "%s:%d" % (ifname_prefix, ifname_suffix_num)
             else:
                 ifname = ifname_prefix
 
             line = [ifname]
-            if i < len(ip4s):
-                ip = ip4s[i]
+            if ip4:
+                line.append('%(address)s netmask %(netmask)s' % ip4)
 
-                line.append('%s netmask %s' % (ip['address'], ip['netmask']))
-
-            if i < len(ip6s):
-                ip = ip6s[i]
-
-                line.append('add %s/%s' % (ip['address'], ip['prefixlen']))
+            if ip6:
+                line.append('add %(address)s/%(prefixlen)s' % ip6)
 
             ifname_suffix_num += 1
 
@@ -326,7 +322,7 @@ def _get_file_data_netcfg(ifname_prefix, interface):
 
     ifname_suffix_num = 0
 
-    for i in xrange(max(len(ip4s), len(ip6s))):
+    for ip4, ip6 in map(None, ip4s, ip6s):
         if ifname_suffix_num:
             ifname = "%s:%d" % (ifname_prefix, ifname_suffix_num)
         else:
@@ -337,22 +333,18 @@ def _get_file_data_netcfg(ifname_prefix, interface):
         print >>outfile, 'CONNECTION="ethernet"'
         print >>outfile, 'INTERFACE=%s' % ifname
 
-        if i < len(ip4s):
-            ip = ip4s[i]
-
+        if ip4:
             print >>outfile, 'IP="static"'
-            print >>outfile, 'ADDR="%s"' % ip['address']
-            print >>outfile, 'NETMASK="%s"' % ip['netmask']
+            print >>outfile, 'ADDR="%(address)s"' % ip4
+            print >>outfile, 'NETMASK="%(netmask)s"' % ip4
 
             if gateway4:
                 print >>outfile, 'GATEWAY="%s"' % gateway4
                 gateway4 = None
 
-        if i < len(ip6s):
-            ip = ip6s[i]
-
+        if ip6:
             print >>outfile, 'IP6="static"'
-            print >>outfile, 'ADDR6="%s/%s"' % (ip['address'], ip['prefixlen'])
+            print >>outfile, 'ADDR6="%(address)s/%(prefixlen)s"' % ip6
 
             if gateway6:
                 print >>outfile, 'GATEWAY6="%s"' % gateway6

@@ -193,7 +193,7 @@ def _get_file_data(interfaces):
 
         ifname_suffix_num = 0
 
-        for i in xrange(max(len(ip4s), len(ip6s))):
+        for ip4, ip6 in map(None, ip4s, ip6s):
             if ifname_suffix_num:
                 ifname = "%s:%d" % (ifname_prefix, ifname_suffix_num)
             else:
@@ -202,23 +202,19 @@ def _get_file_data(interfaces):
             file_data += "\n"
             file_data += "auto %s\n" % ifname
 
-            if i < len(ip4s):
-                ip = ip4s[i]
-
+            if ip4:
                 file_data += "iface %s inet static\n" % ifname
-                file_data += "    address %s\n" % ip['address']
-                file_data += "    netmask %s\n" % ip['netmask']
+                file_data += "    address %(address)s\n" % ip4
+                file_data += "    netmask %(netmask)s\n" % ip4
 
                 if gateway4:
                     file_data += "    gateway %s\n" % gateway4
                     gateway4 = None
 
-            if i < len(ip6s):
-                ip = ip6s[i]
-
+            if ip6:
                 file_data += "iface %s inet6 static\n" % ifname
-                file_data += "    address %s\n" % ip['address']
-                file_data += "    netmask %s\n" % ip['prefixlen']
+                file_data += "    address %(address)s\n" % ip6
+                file_data += "    netmask %(prefixlen)s\n" % ip6
 
                 if gateway6:
                     file_data += "    gateway %s\n" % gateway6

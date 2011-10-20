@@ -134,30 +134,26 @@ def _create_rcconf_file(infile, interfaces, hostname):
 
         ifname_suffix_num = 0
 
-        for i in xrange(max(len(ip4s), len(ip6s))):
+        for ip4, ip6 in map(None, ip4s, ip6s):
             if ifname_suffix_num:
                 ifname = "%s_alias%d" % (ifname_prefix, ifname_suffix_num - 1)
             else:
                 ifname = ifname_prefix
 
-            if i < len(ip4s):
-                ip = ip4s[i]
-
+            if ip4:
                 if ifname_suffix_num:
                     # XXX -- Known bug here.  If we're adding an alias
                     # that is on the same network as another address already
                     # configured, the netmask here should be 255.255.255.255
                     print >> outfile, 'ifconfig_%s="%s netmask %s"' % \
-                            (ifname, ip['address'], ip['netmask'])
+                            (ifname, ip4['address'], ip4['netmask'])
                 else:
                     print >> outfile, 'ifconfig_%s="%s netmask %s up"' % \
-                            (ifname, ip['address'], ip['netmask'])
+                            (ifname, ip4['address'], ip4['netmask'])
 
-            if i < len(ip6s):
-                ip = ip6s[i]
-
+            if ip6:
                 print >> outfile, 'ipv6_ifconfig_%s="%s/%s"' % \
-                        (ifname, ip['address'], ip['prefixlen'])
+                        (ifname, ip6['address'], ip6['prefixlen'])
 
             ifname_suffix_num += 1
 

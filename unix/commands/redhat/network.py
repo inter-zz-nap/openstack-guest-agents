@@ -137,7 +137,7 @@ def _get_file_data(ifname_prefix, interface):
 
     ifname_suffix_num = 0
 
-    for i in xrange(max(len(ip4s), len(ip6s))):
+    for ip4, ip6 in map(None, ip4s, ip6s):
         if ifname_suffix_num:
             ifname = "%s:%d" % (ifname_prefix, ifname_suffix_num)
         else:
@@ -148,23 +148,18 @@ def _get_file_data(ifname_prefix, interface):
         iface_data += "BOOTPROTO=static\n"
         iface_data += "HWADDR=%s\n" % interface['mac']
 
-        if i < len(ip4s):
-            ip = ip4s[i]
-
-            iface_data += "IPADDR=%s\n" % ip['address']
-            iface_data += "NETMASK=%s\n" % ip['netmask']
+        if ip4:
+            iface_data += "IPADDR=%(address)s\n" % ip4
+            iface_data += "NETMASK=%(netmask)s\n" % ip4
             if gateway4:
                 iface_data += "DEFROUTE=yes\n"
                 iface_data += "GATEWAY=%s\n" % gateway4
                 gateway4 = None
 
-        if i < len(ip6s):
-            ip = ip6s[i]
-
+        if ip6:
             iface_data += "IPV6INIT=yes\n"
             iface_data += "IPV6_AUTOCONF=no\n"
-            iface_data += "IPV6ADDR=%s/%s\n" % \
-                    (ip['address'], ip['prefixlen'])
+            iface_data += "IPV6ADDR=%(address)s/%(prefixlen)s\n" % ip6
 
             if gateway6:
                 iface_data += "IPV6_DEFAULTGW=%s%%%s\n" % (gateway6, ifname)
