@@ -17,6 +17,8 @@
  *    under the License.
  */
 
+#define _BSD_SOURCE
+
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -33,6 +35,19 @@
 #include <pthread.h>
 #include <assert.h>
 #include <errno.h>
+#include <sys/socket.h>
+#include <net/if.h>
+#include <net/ethernet.h>
+#if defined(__linux__)
+#include <netpacket/packet.h>
+#include <net/if_arp.h>
+#elif defined(__FreeBSD__)
+#include <net/if_dl.h>
+#include <net/if_types.h>
+#else
+#error Unknown operating system
+#endif
+#include <ifaddrs.h>
 #include "libagent_int.h"
 #include "agentlib.h"
 
@@ -42,6 +57,69 @@ static PyObject *_agentlib_get_version(PyObject *self, PyObject *args)
 {
     return PyString_FromString(AGENT_VERSION);
 }
+
+static PyObject *_agentlib_get_interfaces(PyObject *self, PyObject *args)
+{
+    struct ifaddrs *ifa;
+    if (getifaddrs(&ifa) < 0)
+        return PyErr_SetFromErrno(PyExc_OSError);
+
+    PyObject *interfaces = PyList_New(0);
+    if (!interfaces)
+        return NULL;
+
+    while (ifa) {
+        if (ifa->ifa_flags & IFF_LOOPBACK)
+            goto next;
+
+#if defined(__linux__)
+        if (ifa->ifa_addr->sa_family != PF_PACKET)
+            goto next;
+
+        struct sockaddr_ll *sll = (struct sockaddr_ll *)ifa->ifa_addr;
+        if (sll->sll_hatype != ARPHRD_ETHER)
+            goto next;
+
+        unsigned char *lladdr = sll->sll_addr;
+#elif defined(__FreeBSD__)
+        if (ifa->ifa_addr->sa_family != AF_LINK)
+            goto next;
+
+        struct sockaddr_dl *sdl = (struct sockaddr_dl *)ifa->ifa_addr;
+        if (sdl->sdl_type != IFT_ETHER)
+            goto next;
+
+        unsigned char *lladdr = (unsigned char *)LLADDR(sdl);
+#endif
+
+        char macaddr[sizeof("00:11:22:33:44:55") + 1];
+        snprintf(macaddr, sizeof(macaddr), "%02x:%02x:%02x:%02x:%02x:%02x",
+                lladdr[0], lladdr[1], lladdr[2],
+                lladdr[3], lladdr[4], lladdr[5]);
+
+        PyObject *arg = Py_BuildValue("ss", ifa->ifa_name, macaddr);
+        if (!arg)
+            goto err;
+
+        int ret = PyList_Append(interfaces, arg);
+        Py_DECREF(arg);
+        if (ret < 0)
+            goto err;
+
+next:
+        ifa = ifa->ifa_next;
+    }
+    freeifaddrs(ifa);
+
+    return interfaces;
+
+err:
+    Py_DECREF(interfaces);
+    freeifaddrs(ifa);
+
+    return NULL;
+}
+
 
 static PyObject *_agentlib_register(PyObject *self, PyObject *args)
 {
@@ -123,6 +201,9 @@ PyMODINIT_FUNC AGENTLIB_PUBLIC_API initagentlib(void)
     {
         { "get_version", (PyCFunction)_agentlib_get_version,
                 METH_NOARGS, "Get the agent version string" },
+        { "get_interfaces", (PyCFunction)_agentlib_get_interfaces,
+                METH_NOARGS, "Get the network interface names and "
+                             "MAC addresses" },
         { "sethostname", (PyCFunction)_agentlib_sethostname,
                 METH_VARARGS, "Set the system hostname" },
         { "encrypt_password", (PyCFunction)_agentlib_encrypt_password,

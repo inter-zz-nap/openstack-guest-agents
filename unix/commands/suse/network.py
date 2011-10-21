@@ -20,6 +20,13 @@
 suse network helper module
 """
 
+# SuSE network configuration uses:
+# - 1 network configuration file per interface
+# - 1 IP per interface
+# - routes are per interface
+# - gateways are per interface
+# - DNS is global (/etc/sysconfig/network/config)
+
 import os
 import time
 import glob
@@ -35,15 +42,10 @@ NETCONFIG_DIR = "/etc/sysconfig/network"
 INTERFACE_FILE = "ifcfg-%s"
 ROUTE_FILE = "ifroute-%s"
 
-INTERFACE_LABELS = {"public": "eth0",
-                    "private": "eth1"}
 
-
-def configure_network(network_config, *args, **kwargs):
+def configure_network(hostname, interfaces):
 
     # Generate new interface files
-    interfaces = network_config.get('interfaces', [])
-
     update_files, remove_files = process_interface_files(interfaces)
 
     # Update nameservers
@@ -52,12 +54,11 @@ def configure_network(network_config, *args, **kwargs):
     else:
         infile = StringIO()
 
-    data = get_nameservers_file(infile, interfaces)
+    dns = commands.network.get_nameservers(interfaces)
+    data = get_nameservers_file(infile, dns)
     update_files[DNS_CONFIG_FILE] = data
 
     # Generate new hostname file
-    hostname = network_config.get('hostname')
-
     data = get_hostname_file(hostname)
     update_files[HOSTNAME_FILE] = data
 
@@ -98,16 +99,8 @@ def get_hostname_file(hostname):
     return hostname + '\n'
 
 
-def get_nameservers_file(infile, interfaces):
+def get_nameservers_file(infile, dns):
     outfile = StringIO()
-
-    dns = []
-    for interface in interfaces:
-        if interface['label'] != 'public':
-            continue
-
-        dns = interface.get('dns', [])
-
     if not dns:
         return outfile
 
@@ -134,91 +127,41 @@ def get_nameservers_file(infile, interfaces):
     return outfile.read()
 
 
-def _get_file_data(interface):
+def _get_file_data(ifname, interface):
     """
     Return data for (sub-)interfaces and routes
     """
 
-    try:
-        label = interface['label']
-    except KeyError:
-        raise SystemError("No interface label found")
+    ip4s = interface['ip4s']
+    ip6s = interface['ip6s']
 
-    try:
-        ifname = INTERFACE_LABELS[label]
-    except KeyError:
-        raise SystemError("Invalid label '%s'" % label)
-
-    ip4s = interface.get('ips', [])
-    ip6s = interface.get('ip6s', [])
-
-    if not ip4s and not ip6s:
-        raise SystemError("No IPs found for interface")
-
-    try:
-        mac = interface['mac']
-    except KeyError:
-        raise SystemError("No mac address found for interface")
-
-    if label == "public":
-        gateway4 = interface.get('gateway')
-        gateway6 = interface.get('gateway6')
-
-        if not gateway4 and not gateway6:
-            raise SystemError("No gateway found for public interface")
-    else:
-        gateway4 = gateway6 = None
+    gateway4 = interface['gateway4']
+    gateway6 = interface['gateway6']
 
     ifnum = None
 
     iface_data = "# Automatically generated, do not edit\n"
     iface_data += "BOOTPROTO='static'\n"
 
-    for ip_info in ip4s:
-        enabled = ip_info.get('enabled', '0')
-        if enabled != '1':
-            continue
-
-        try:
-            ip = ip_info['ip']
-            netmask = ip_info['netmask']
-        except KeyError:
-            raise SystemError(
-                    "Missing IP or netmask in interface's IP list")
-
+    for ip in ip4s:
         if ifnum is None:
-            iface_data += "IPADDR='%s'\n" % ip
-            iface_data += "NETMASK='%s'\n" % netmask
+            iface_data += "IPADDR='%s'\n" % ip['address']
+            iface_data += "NETMASK='%s'\n" % ip['netmask']
             ifnum = 0
         else:
-            iface_data += "IPADDR_%s='%s'\n" % (ifnum, ip)
-            iface_data += "NETMASK_%s='%s'\n" % (ifnum, netmask)
+            iface_data += "IPADDR_%s='%s'\n" % (ifnum, ip['address'])
+            iface_data += "NETMASK_%s='%s'\n" % (ifnum, ip['netmask'])
             iface_data += "LABEL_%s='%s'\n" % (ifnum, ifnum)
             ifnum += 1
 
-    for ip_info in ip6s:
-        enabled = ip_info.get('enabled', '0')
-        if enabled != '1':
-            continue
-
-        ip = ip_info.get('address', ip_info.get('ip'))
-        if not ip:
-            raise SystemError(
-                    "Missing IP in interface's IP list")
-        netmask = ip_info.get('netmask')
-        if not netmask:
-            raise SystemError(
-                    "Missing netmask in interface's IP list")
-
-        gateway6 = ip_info.get('gateway', gateway6)
-
+    for ip in ip6s:
         if ifnum is None:
-            iface_data += "IPADDR='%s'\n" % ip
-            iface_data += "PREFIXLEN='%s'\n" % netmask
+            iface_data += "IPADDR='%s'\n" % ip['address']
+            iface_data += "PREFIXLEN='%s'\n" % ip['prefixlen']
             ifnum = 0
         else:
-            iface_data += "IPADDR_%s='%s'\n" % (ifnum, ip)
-            iface_data += "PREFIXLEN_%s='%s'\n" % (ifnum, netmask)
+            iface_data += "IPADDR_%s='%s'\n" % (ifnum, ip['address'])
+            iface_data += "PREFIXLEN_%s='%s'\n" % (ifnum, ip['prefixlen'])
             iface_data += "LABEL_%s='%s'\n" % (ifnum, ifnum)
             ifnum += 1
 
@@ -226,8 +169,8 @@ def _get_file_data(interface):
     iface_data += "USERCONTROL='no'\n"
 
     route_data = ''
-    for route in interface.get('routes', []):
-        network = route['route']
+    for route in interface['routes']:
+        network = route['network']
         netmask = route['netmask']
         gateway = route['gateway']
 
@@ -239,14 +182,14 @@ def _get_file_data(interface):
     if gateway6:
         route_data += 'default %s - -\n' % gateway6
 
-    return (ifname, iface_data, route_data)
+    return (iface_data, route_data)
 
 
 def get_interface_files(interfaces):
     results = {}
 
-    for interface in interfaces:
-        ifname, iface_data, route_data = _get_file_data(interface)
+    for ifname, interface in interfaces.iteritems():
+        iface_data, route_data = _get_file_data(ifname, interface)
 
         results[INTERFACE_FILE % ifname] = iface_data
 

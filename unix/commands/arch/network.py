@@ -20,6 +20,23 @@
 arch linux network helper module
 """
 
+# Arch has two different kinds of network configuration. More recently,
+# there's 'netcfg' and previously (for lack of a better term) 'legacy'.
+#
+# legacy uses:
+# - 1 shell-script-style global configuration (/etc/rc.conf)
+# - one IP per interface
+# - routes are per interface
+# - gateways are global
+# - DNS is per interface
+#
+# netcfg uses:
+# - multiple shell-script-style network configurations, 1 per interface
+# - one IP per configuration
+# - routes are per interface
+# - gateways are per interface
+# - DNS is global (/etc/resolv.conf)
+
 import os
 import re
 import time
@@ -31,10 +48,6 @@ import commands.network
 
 CONF_FILE = "/etc/rc.conf"
 NETWORK_DIR = "/etc/network.d"
-RESOLV_FILE = "/etc/resolv.conf"
-
-INTERFACE_LABELS = {"public": "eth0",
-                    "private": "eth1"}
 
 
 def _execute(command):
@@ -48,12 +61,11 @@ def _execute(command):
     return status
 
 
-def configure_network(network_config, *args, **kwargs):
-
-    # Update config file with new interface configuration
-    interfaces = network_config.get('interfaces', [])
-
-    # Check if netcfg is installed (and should be used)
+def configure_network(hostname, interfaces):
+    # Arch is a rolling release, meaning new features and updated packages
+    # roll out on a unpredictable schedule. It also means there is no such
+    # thing as v1.0 or v2.0. So, let's try checking if the netcfg package
+    # is installed to see what format should be used.
     status = _execute(['/usr/bin/pacman', '-Q', 'netcfg'])
     use_netcfg = (status == 0)
 
@@ -70,12 +82,11 @@ def configure_network(network_config, *args, **kwargs):
         remove_files = set()
 
         # Generate new /etc/resolv.conf file
-        data = _get_resolv_conf(interfaces)
-        update_files[RESOLV_FILE] = data
+        filepath, data = commands.network.get_resolv_conf(interfaces)
+        if data:
+            update_files[filepath] = data
 
     # Update config file with new hostname
-    hostname = network_config.get('hostname')
-
     infile = StringIO(update_files.get(CONF_FILE, ''))
 
     data = get_hostname_file(infile, hostname)
@@ -136,21 +147,6 @@ def get_hostname_file(infile, hostname):
     return outfile.read()
 
 
-def _get_resolv_conf(interfaces):
-    resolv_data = ''
-    for interface in interfaces:
-        if interface['label'] != 'public':
-            continue
-
-        for nameserver in interface.get('dns', []):
-            resolv_data += 'nameserver %s\n' % nameserver
-
-    if not resolv_data:
-        return ''
-
-    return '# Automatically generated, do not edit\n' + resolv_data
-
-
 def _parse_variable(line):
     k, v = line.split('=')
     v = v.strip()
@@ -176,94 +172,39 @@ def _update_rc_conf_legacy(infile, interfaces):
     ifaces = []
     routes = []
 
-    for interface in interfaces:
-        try:
-            label = interface['label']
-        except KeyError:
-            raise SystemError("No interface label found")
+    gateway4, gateway6 = commands.network.get_gateways(interfaces)
 
-        try:
-            ifname_prefix = INTERFACE_LABELS[label]
-        except KeyError:
-            raise SystemError("Invalid label '%s'" % label)
+    ifnames = interfaces.keys()
+    ifnames.sort()
 
-        ip4s = interface.get('ips', [])
-        ip6s = interface.get('ip6s', [])
+    for ifname_prefix in ifnames:
+        interface = interfaces[ifname_prefix]
 
-        if not ip4s and not ip6s:
-            raise SystemError("No IPs found for interface")
-
-        try:
-            mac = interface['mac']
-        except KeyError:
-            raise SystemError("No mac address found for interface")
-
-        if label == "public":
-            gateway4 = interface.get('gateway')
-            gateway6 = interface.get('gateway6')
-
-            if not gateway4 and not gateway6:
-                raise SystemError("No gateway found for public interface")
-
-            try:
-                dns = interface['dns']
-            except KeyError:
-                raise SystemError("No DNS found for public interface")
-        else:
-            gateway4 = gateway6 = None
+        ip4s = interface['ip4s']
+        ip6s = interface['ip6s']
 
         ifname_suffix_num = 0
 
-        for i in xrange(max(len(ip4s), len(ip6s))):
+        for ip4, ip6 in map(None, ip4s, ip6s):
             if ifname_suffix_num:
                 ifname = "%s:%d" % (ifname_prefix, ifname_suffix_num)
             else:
                 ifname = ifname_prefix
 
             line = [ifname]
-            if i < len(ip4s):
-                ip_info = ip4s[i]
+            if ip4:
+                line.append('%(address)s netmask %(netmask)s' % ip4)
 
-                enabled = ip_info.get('enabled', '0')
-                if enabled != '0':
-                    try:
-                        ip = ip_info['ip']
-                        netmask = ip_info['netmask']
-                    except KeyError:
-                        raise SystemError(
-                                "Missing IP or netmask in interface's IP list")
-
-                    line.append('%s netmask %s' % (ip, netmask))
-
-            if i < len(ip6s):
-                ip_info = ip6s[i]
-
-                enabled = ip_info.get('enabled', '0')
-                if enabled != '0':
-                    ip = ip_info.get('address', ip_info.get('ip'))
-                    if not ip:
-                        raise SystemError(
-                                "Missing IP in interface's IP list")
-                    netmask = ip_info.get('netmask')
-                    if not netmask:
-                        raise SystemError(
-                                "Missing netmask in interface's IP list")
-
-                    if not gateway6:
-                        gateway6 = ip_info.get('gateway', gateway6)
-
-                    line.append('add %s/%s' % (ip, netmask))
+            if ip6:
+                line.append('add %(address)s/%(prefixlen)s' % ip6)
 
             ifname_suffix_num += 1
 
             ifaces.append((ifname.replace(':', '_'), ' '.join(line)))
 
-        for i, route in enumerate(interface.get('routes', [])):
-            network = route['route']
-            netmask = route['netmask']
-            gateway = route['gateway']
-
-            line = "-net %s netmask %s gw %s" % (network, netmask, gateway)
+        for i, route in enumerate(interface['routes']):
+            line = "-net %(network)s netmask %(netmask)s gw %(gateway)s" % \
+                    route
 
             routes.append(('%s_route%d' % (ifname_prefix, i), line))
 
@@ -364,51 +305,24 @@ def _update_rc_conf_legacy(infile, interfaces):
     return outfile.read()
 
 
-def _get_file_data_netcfg(interface):
+def _get_file_data_netcfg(ifname_prefix, interface):
     """
     Return data for (sub-)interfaces
     """
 
     ifaces = []
 
-    try:
-        label = interface['label']
-    except KeyError:
-        raise SystemError("No interface label found")
+    ip4s = interface['ip4s']
+    ip6s = interface['ip6s']
 
-    try:
-        ifname_prefix = INTERFACE_LABELS[label]
-    except KeyError:
-        raise SystemError("Invalid label '%s'" % label)
+    gateway4 = interface['gateway4']
+    gateway6 = interface['gateway6']
 
-    ip4s = interface.get('ips', [])
-    ip6s = interface.get('ip6s', [])
-
-    if not ip4s and not ip6s:
-        raise SystemError("No IPs found for interface")
-
-    try:
-        mac = interface['mac']
-    except KeyError:
-        raise SystemError("No mac address found for interface")
-
-    if label == "public":
-        gateway4 = interface.get('gateway')
-        gateway6 = interface.get('gateway6')
-
-        if not gateway4 and not gateway6:
-            raise SystemError("No gateway found for public interface")
-
-        try:
-            dns = interface['dns']
-        except KeyError:
-            raise SystemError("No DNS found for public interface")
-    else:
-        gateway4 = gateway6 = dns = None
+    dns = interface['dns']
 
     ifname_suffix_num = 0
 
-    for i in xrange(max(len(ip4s), len(ip6s))):
+    for ip4, ip6 in map(None, ip4s, ip6s):
         if ifname_suffix_num:
             ifname = "%s:%d" % (ifname_prefix, ifname_suffix_num)
         else:
@@ -419,53 +333,29 @@ def _get_file_data_netcfg(interface):
         print >>outfile, 'CONNECTION="ethernet"'
         print >>outfile, 'INTERFACE=%s' % ifname
 
-        if i < len(ip4s):
-            ip_info = ip4s[i]
+        if ip4:
+            print >>outfile, 'IP="static"'
+            print >>outfile, 'ADDR="%(address)s"' % ip4
+            print >>outfile, 'NETMASK="%(netmask)s"' % ip4
 
-            enabled = ip_info.get('enabled', '0')
-            if enabled != '0':
-                try:
-                    ip = ip_info['ip']
-                    netmask = ip_info['netmask']
-                except KeyError:
-                    raise SystemError(
-                            "Missing IP or netmask in interface's IP list")
+            if gateway4:
+                print >>outfile, 'GATEWAY="%s"' % gateway4
+                gateway4 = None
 
-                print >>outfile, 'IP="static"'
-                print >>outfile, 'ADDR="%s"' % ip
-                print >>outfile, 'NETMASK="%s"' % netmask
-                if gateway4:
-                    print >>outfile, 'GATEWAY="%s"' % gateway4
+        if ip6:
+            print >>outfile, 'IP6="static"'
+            print >>outfile, 'ADDR6="%(address)s/%(prefixlen)s"' % ip6
 
-        if i < len(ip6s):
-            ip_info = ip6s[i]
-
-            enabled = ip_info.get('enabled', '0')
-            if enabled != '0':
-                ip = ip_info.get('address', ip_info.get('ip'))
-                if not ip:
-                    raise SystemError(
-                            "Missing IP in interface's IP list")
-                netmask = ip_info.get('netmask')
-                if not netmask:
-                    raise SystemError(
-                            "Missing netmask in interface's IP list")
-
-                print >>outfile, 'IP6="static"'
-                print >>outfile, 'ADDR6="%s/%s"' % (ip, netmask)
-
-                gateway6 = ip_info.get('gateway', gateway6)
-                if gateway6:
-                    print >>outfile, 'GATEWAY6="%s"' % gateway6
+            if gateway6:
+                print >>outfile, 'GATEWAY6="%s"' % gateway6
+                gateway6 = None
 
         if not ifname_suffix_num:
             # Add routes to first interface
             routes = []
-            for route in interface.get('routes', []):
-                network = route['route']
-                netmask = route['netmask']
-                gateway = route['gateway']
-                routes.append('"%s/%s via %s"' % (network, netmask, gateway))
+            for route in interface['routes']:
+                routes.append('"%(network)s/%(netmask)s via %(gateway)s"' %
+                        route)
 
             if routes:
                 print >>outfile, 'ROUTES=(%s)' % ' '.join(routes)
@@ -554,10 +444,10 @@ def get_interface_files(infiles, interfaces, version):
     if version == 'netcfg':
         update_files = {}
         netnames = []
-        for interface in interfaces:
-            ifaces = _get_file_data_netcfg(interface)
+        for ifname, interface in interfaces.iteritems():
+            subifaces = _get_file_data_netcfg(ifname, interface)
 
-            for ifname, data in ifaces:
+            for ifname, data in subifaces:
                 filename = ifname.replace(':', '_')
                 filepath = os.path.join(NETWORK_DIR, filename)
                 update_files[filepath] = data
@@ -594,8 +484,8 @@ def process_interface_files_netcfg(update_files, interfaces):
             remove_files.add(filepath)
 
     netnames = []
-    for interface in interfaces:
-        subifaces = _get_file_data_netcfg(interface)
+    for ifname, interface in interfaces.iteritems():
+        subifaces = _get_file_data_netcfg(ifname, interface)
 
         for ifname, data in subifaces:
             filename = ifname.replace(':', '_')

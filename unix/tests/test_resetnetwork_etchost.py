@@ -29,7 +29,7 @@ import commands.network
 
 class TestEtcHostUpdates(agent_test.TestCase):
 
-    _interfaces = [{'label': 'public', 'ips': [{'ip': '192.0.2.1'}]}]
+    _interfaces = {'eth0': {'ip4s': [{'address': '192.0.2.1'}], 'ip6s': []}}
     _hostname = 'example'
 
     def _run_test(self, *args):

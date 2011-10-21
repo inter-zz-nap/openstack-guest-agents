@@ -20,6 +20,13 @@
 FreeBSD network helper module
 """
 
+# FreeBSD network configuration uses:
+# - 1 shell-script-style global configuration file (/etc/rc.conf)
+# - 1 IP per interface
+# - routes are global
+# - gateways are global
+# - DNS is configured via resolv.conf 
+
 import os
 import re
 import time
@@ -29,30 +36,20 @@ from cStringIO import StringIO
 
 import commands.network
 
-RESOLV_FILE = "/etc/resolv.conf"
 RCCONF_FILE = "/etc/rc.conf"
 
-INTERFACE_LABELS = {"public": "xn0",
-                    "private": "xn1"}
 
-
-def configure_network(network_config, *args, **kwargs):
-
+def configure_network(hostname, interfaces):
     update_files = {}
-
-    # Generate new interface files
-    interfaces = network_config.get('interfaces', [])
-
-    # Generate new hostname file
-    hostname = network_config.get('hostname')
 
     # Generate new /etc/rc.conf
     data = _get_file_data(interfaces, hostname)
     update_files[RCCONF_FILE] = data
 
     # Generate new /etc/resolv.conf file
-    data = _get_resolv_conf(interfaces)
-    update_files[RESOLV_FILE] = data
+    filepath, data = commands.network.get_resolv_conf(interfaces)
+    if data:
+        update_files[filepath] = data
 
     # Generate new /etc/hosts file
     filepath, data = commands.network.get_etc_hosts(interfaces, hostname)
@@ -95,30 +92,13 @@ def configure_network(network_config, *args, **kwargs):
     return (0, "")
 
 
-def _get_resolv_conf(interfaces):
-    resolv_data = ''
-    for interface in interfaces:
-        if interface['label'] != 'public':
-            continue
-
-        for nameserver in interface.get('dns', []):
-            resolv_data += 'nameserver %s\n' % nameserver
-
-    if not resolv_data:
-        return ''
-
-    return '# Automatically generated, do not edit\n' + resolv_data
-
-
 def _create_rcconf_file(infile, interfaces, hostname):
     """
     Return new rc.conf, merging in 'infile'
     """
 
-    ipv6_interfaces = ''
+    ipv6_interfaces = []
     static_route_entries = []
-    defaultrouter = ''
-    ipv6_defaultrouter = ''
 
     outfile = StringIO()
 
@@ -139,135 +119,72 @@ def _create_rcconf_file(infile, interfaces, hostname):
     print >> outfile, 'dhcpd_enable="NO"'
     print >> outfile, 'hostname=%s' % hostname
 
-    for interface in interfaces:
-        try:
-            label = interface['label']
-        except KeyError:
-            raise SystemError("No interface label found")
+    gateway4, gateway6 = commands.network.get_gateways(interfaces)
 
-        try:
-            ifname_prefix = INTERFACE_LABELS[label]
-        except KeyError:
-            raise SystemError("Invalid label '%s'" % label)
+    ifnames = interfaces.keys()
+    ifnames.sort()
+    for ifname_prefix in ifnames:
+        interface = interfaces[ifname_prefix]
 
-        try:
-            ips = interface['ips']
-        except KeyError:
-            raise SystemError("No IPs found for interface")
+        ip4s = interface['ip4s']
+        ip6s = interface['ip6s']
 
-        ip6s = interface.get('ip6s', [])
-
-        try:
-            mac = interface['mac']
-        except KeyError:
-            raise SystemError("No mac address found for interface")
-
-        try:
-            routes = interface['routes']
-        except KeyError:
-            routes = []
-
-        if label == "public":
-            gateway4 = interface.get('gateway')
-            gateway6 = interface.get('gateway6')
-            if not gateway4 and not gateway6:
-                raise SystemError("No gateway found for public interface")
-            if gateway4 and not len(defaultrouter):
-                defaultrouter = gateway4
-            if gateway6 and not len(ipv6_defaultrouter):
-                ipv6_defaultrouter = gateway6
-            if len(ip6s):
-                if len(ipv6_interfaces):
-                    ipv6_interfaces += ','
-                ipv6_interfaces += ifname_prefix
-        else:
-            gateway4 = gateway6 = None
+        if ip6s:
+            ipv6_interfaces.append(ifname_prefix)
 
         ifname_suffix_num = 0
 
-        for i in xrange(max(len(ips), len(ip6s))):
+        for ip4, ip6 in map(None, ip4s, ip6s):
             if ifname_suffix_num:
                 ifname = "%s_alias%d" % (ifname_prefix, ifname_suffix_num - 1)
             else:
                 ifname = ifname_prefix
 
-            if i < len(ips):
-                ip_info = ips[i]
-            else:
-                ip_info = None
-
-            if i < len(ip6s):
-                ip6_info = ip6s[i]
-            else:
-                ip6_info = None
-
-            if not ip_info and not ip6_info:
-                continue
-
-            if ip_info and ip_info.get('enabled', '0') != '0':
-                try:
-                    ip = ip_info['ip']
-                    netmask = ip_info['netmask']
-                except KeyError:
-                    raise SystemError(
-                            "Missing IP or netmask in interface's IP list")
-
+            if ip4:
                 if ifname_suffix_num:
                     # XXX -- Known bug here.  If we're adding an alias
                     # that is on the same network as another address already
                     # configured, the netmask here should be 255.255.255.255
                     print >> outfile, 'ifconfig_%s="%s netmask %s"' % \
-                            (ifname, ip, netmask)
+                            (ifname, ip4['address'], ip4['netmask'])
                 else:
                     print >> outfile, 'ifconfig_%s="%s netmask %s up"' % \
-                            (ifname, ip, netmask)
+                            (ifname, ip4['address'], ip4['netmask'])
 
-            if ip6_info and ip6_info.get('enabled', '0') != '0':
-                ip = ip6_info.get('address', ip6_info.get('ip'))
-                if not ip:
-                    raise SystemError(
-                            "Missing IP in interface's IPv6 list")
-                netmask = ip6_info.get('netmask')
-                if not netmask:
-                    raise SystemError(
-                            "Missing netmask in interface's IPv6 list")
-
+            if ip6:
                 print >> outfile, 'ipv6_ifconfig_%s="%s/%s"' % \
-                        (ifname, ip, netmask)
-
-                gateway = ip6_info.get('gateway', gateway6)
+                        (ifname, ip6['address'], ip6['prefixlen'])
 
             ifname_suffix_num += 1
 
-        for x in xrange(len(routes)):
-            route = routes[x]
-            network = route['route']
-            netmask = route['netmask']
-            gateway = route['gateway']
-
-            if ':' in network:
+        for route in interface['routes']:
+            if ':' in route['network']:
                 # ipv6
-                fmt = '-net %s/%s %s'
+                fmt = '-net %(network)s/%(netmask)s %(gateway)s'
             else:
-                fmt = '-net %s -netmask %s %s'
+                fmt = '-net %(network)s -netmask %(netmask)s %(gateway)s'
 
-            static_route_entries.append(fmt % (network, netmask, gateway))
+            static_route_entries.append(fmt % route)
 
-    if len(static_route_entries):
+    if static_route_entries:
         names = []
-        for x in xrange(len(static_route_entries)):
-            name = 'lan%d' % x
+        for i, line in enumerate(static_route_entries):
+            name = 'lan%d' % i
             names.append(name)
-            print >> outfile, 'route_lan%d="%s"' % \
-                    (x, static_route_entries[x])
+            print >> outfile, 'route_%s="%s"' % (name, line)
+
         print >> outfile, 'static_routes="%s"' % ','.join(names)
-    if len(ipv6_interfaces):
+
+    if ipv6_interfaces:
         print >> outfile, 'ipv6_enable="YES"'
-        print >> outfile, 'ipv6_network_interfaces="%s"' % ipv6_interfaces
-    if len(defaultrouter):
-        print >> outfile, 'defaultrouter="%s"' % defaultrouter
-    if len(ipv6_defaultrouter):
-        print >> outfile, 'ipv6_defaultrouter="%s"' % ipv6_defaultrouter
+        print >> outfile, 'ipv6_network_interfaces="%s"' % \
+            ','.join(ipv6_interfaces)
+
+    if gateway4:
+        print >> outfile, 'defaultrouter="%s"' % gateway4
+
+    if gateway6:
+        print >> outfile, 'ipv6_defaultrouter="%s"' % gateway6
 
     outfile.seek(0)
     return outfile.read()
