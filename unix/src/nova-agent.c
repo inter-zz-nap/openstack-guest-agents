@@ -365,7 +365,7 @@ int main(int argc, char **argv)
         }
     }
 
-    agent_info("Agent started");
+    agent_info("Agent " AGENT_VERSION " started");
 
     _agent_signal_loop();
 
