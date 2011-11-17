@@ -36,6 +36,11 @@ arch linux network helper module
 # - routes are per interface
 # - gateways are per interface
 # - DNS is global (/etc/resolv.conf)
+#
+# netcfg is designed for one IP per configuration, but it's not tolerant
+# of the older style colon interfaces for IP aliasing. So we have to use
+# a hack to get IP aliasing working:
+# https://bbs.archlinux.org/viewtopic.php?pid=951573#p951573
 
 import os
 import re
@@ -68,6 +73,8 @@ def configure_network(hostname, interfaces):
     # is installed to see what format should be used.
     status = _execute(['/usr/bin/pacman', '-Q', 'netcfg'])
     use_netcfg = (status == 0)
+    logging.info('using %s style configuration' %
+                 (use_netcfg and 'netcfg' or 'legacy'))
 
     update_files = {}
 
@@ -96,9 +103,6 @@ def configure_network(hostname, interfaces):
     filepath, data = commands.network.get_etc_hosts(interfaces, hostname)
     update_files[filepath] = data
 
-    # Write out new files
-    commands.network.update_files(update_files, remove_files)
-
     # Set hostname
     try:
         commands.network.sethostname(hostname)
@@ -106,16 +110,35 @@ def configure_network(hostname, interfaces):
         logging.error("Couldn't sethostname(): %s" % str(e))
         return (500, "Couldn't set hostname: %s" % str(e))
 
-    # Restart network
+    # Stage files
+    commands.network.stage_files(update_files)
+
+    # Down network
     if use_netcfg:
         for netname in netnames:
-            status = _execute(['/usr/bin/netcfg', '-r', netname])
+            status = _execute(['/usr/bin/netcfg', '-d', netname])
             if status != 0:
-                return (500, "Couldn't restart %s: %d" % (netname, status))
+                return (500, "Couldn't configure %s down: %d" %
+                             (netname, status))
     else:
-        status = _execute(['/etc/rc.d/network', 'restart'])
+        status = _execute(['/etc/rc.d/network', 'stop'])
         if status != 0:
-            return (500, "Couldn't restart network: %d" % status)
+            return (500, "Couldn't stop network: %d" % status)
+
+    # Move files
+    commands.network.move_files(update_files, remove_files)
+
+    # Up network
+    if use_netcfg:
+        for netname in netnames:
+            status = _execute(['/usr/bin/netcfg', '-u', netname])
+            if status != 0:
+                return (500, "Couldn't configure %s up: %d" %
+                             (netname, status))
+    else:
+        status = _execute(['/etc/rc.d/network', 'start'])
+        if status != 0:
+            return (500, "Couldn't start network: %d" % status)
 
     return (0, "")
 
@@ -305,7 +328,7 @@ def _update_rc_conf_legacy(infile, interfaces):
     return outfile.read()
 
 
-def _get_file_data_netcfg(ifname_prefix, interface):
+def _get_file_data_netcfg(ifname, interface):
     """
     Return data for (sub-)interfaces
     """
@@ -320,55 +343,54 @@ def _get_file_data_netcfg(ifname_prefix, interface):
 
     dns = interface['dns']
 
-    ifname_suffix_num = 0
+    outfile = StringIO()
 
-    for ip4, ip6 in map(None, ip4s, ip6s):
-        if ifname_suffix_num:
-            ifname = "%s:%d" % (ifname_prefix, ifname_suffix_num)
-        else:
-            ifname = ifname_prefix
+    print >>outfile, 'CONNECTION="ethernet"'
+    print >>outfile, 'INTERFACE=%s' % ifname
 
-        outfile = StringIO()
+    if ip4s:
+        ip4 = ip4s.pop(0)
+        print >>outfile, 'IP="static"'
+        print >>outfile, 'ADDR="%(address)s"' % ip4
+        print >>outfile, 'NETMASK="%(netmask)s"' % ip4
 
-        print >>outfile, 'CONNECTION="ethernet"'
-        print >>outfile, 'INTERFACE=%s' % ifname
+        if gateway4:
+            print >>outfile, 'GATEWAY="%s"' % gateway4
 
-        if ip4:
-            print >>outfile, 'IP="static"'
-            print >>outfile, 'ADDR="%(address)s"' % ip4
-            print >>outfile, 'NETMASK="%(netmask)s"' % ip4
+    if ip6s:
+        ip6 = ip6s.pop(0)
+        print >>outfile, 'IP6="static"'
+        print >>outfile, 'ADDR6="%(address)s/%(prefixlen)s"' % ip6
 
-            if gateway4:
-                print >>outfile, 'GATEWAY="%s"' % gateway4
-                gateway4 = None
+        if gateway6:
+            print >>outfile, 'GATEWAY6="%s"' % gateway6
 
-        if ip6:
-            print >>outfile, 'IP6="static"'
-            print >>outfile, 'ADDR6="%(address)s/%(prefixlen)s"' % ip6
+    routes = ['"%(network)s/%(netmask)s via %(gateway)s"' % route 
+              for route in interface['routes']]
 
-            if gateway6:
-                print >>outfile, 'GATEWAY6="%s"' % gateway6
-                gateway6 = None
+    if routes:
+        print >>outfile, 'ROUTES=(%s)' % ' '.join(routes)
 
-        if not ifname_suffix_num:
-            # Add routes to first interface
-            routes = []
-            for route in interface['routes']:
-                routes.append('"%(network)s/%(netmask)s via %(gateway)s"' %
-                        route)
+    if dns:
+        print >>outfile, 'DNS=(%s)' % ' '.join(dns)
 
-            if routes:
-                print >>outfile, 'ROUTES=(%s)' % ' '.join(routes)
+    # Finally add remaining aliases. This is kind of hacky, see comment at
+    # top for explanation
+    aliases = ['%(address)s/%(netmask)s' % ip4 for ip4 in ip4s] + \
+              ['%(address)s/%(prefixlen)s' % ip6 for ip6 in ip6s]
 
-            if dns:
-                print >>outfile, 'DNS=(%s)' % ' '.join(dns)
+    if aliases:
+        commands = '; '.join(['ip addr add %s dev %s' % (a, ifname)
+                              for a in aliases])
+        print >>outfile, 'POST_UP="%s"' % commands
 
-        outfile.seek(0)
-        ifaces.append((ifname, outfile.read()))
+        aliases.reverse()
+        commands = '; '.join(['ip addr del %s dev %s' % (a, ifname)
+                              for a in aliases])
+        print >>outfile, 'PRE_DOWN="%s"' % commands
 
-        ifname_suffix_num += 1
-
-    return ifaces
+    outfile.seek(0)
+    return outfile.read()
 
 
 def _update_rc_conf_netcfg(infile, netnames):
@@ -445,14 +467,12 @@ def get_interface_files(infiles, interfaces, version):
         update_files = {}
         netnames = []
         for ifname, interface in interfaces.iteritems():
-            subifaces = _get_file_data_netcfg(ifname, interface)
+            data = _get_file_data_netcfg(ifname, interface)
 
-            for ifname, data in subifaces:
-                filename = ifname.replace(':', '_')
-                filepath = os.path.join(NETWORK_DIR, filename)
-                update_files[filepath] = data
+            filepath = os.path.join(NETWORK_DIR, ifname)
+            update_files[filepath] = data
 
-                netnames.append(filename)
+            netnames.append(ifname)
 
         infile = StringIO(infiles.get(CONF_FILE, ''))
         data = _update_rc_conf_netcfg(infile, netnames)
@@ -485,16 +505,14 @@ def process_interface_files_netcfg(update_files, interfaces):
 
     netnames = []
     for ifname, interface in interfaces.iteritems():
-        subifaces = _get_file_data_netcfg(ifname, interface)
+        data = _get_file_data_netcfg(ifname, interface)
 
-        for ifname, data in subifaces:
-            filename = ifname.replace(':', '_')
-            filepath = os.path.join(NETWORK_DIR, filename)
-            update_files[filepath] = data
-            if filepath in remove_files:
-                remove_files.remove(filepath)
+        filepath = os.path.join(NETWORK_DIR, ifname)
+        update_files[filepath] = data
+        if filepath in remove_files:
+            remove_files.remove(filepath)
 
-            netnames.append(filename)
+        netnames.append(ifname)
 
     infile = StringIO(update_files.get(CONF_FILE, ''))
     data = _update_rc_conf_netcfg(infile, netnames)

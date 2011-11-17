@@ -364,18 +364,16 @@ def sethostname(hostname):
     agentlib.sethostname(hostname)
 
 
-def update_files(update_files, remove_files=None, dont_rename=False):
-    if not remove_files:
-        remove_files = set()
-    for filepath, data in update_files.iteritems():
+def stage_files(update_files):
+    for filepath, data in update_files.items():
         if os.path.exists(filepath):
             # If the data is the same, skip it, nothing to do
             if data == open(filepath).read():
                 logging.info("skipping %s (no changes)" % filepath)
+                del update_files[filepath]
                 continue
 
         tmp_file = filepath + ".%d~" % os.getpid()
-        bak_file = filepath + ".%d~" % time.time()
 
         logging.info("writing %s" % filepath)
 
@@ -386,22 +384,40 @@ def update_files(update_files, remove_files=None, dont_rename=False):
 
             os.chown(tmp_file, 0, 0)
             os.chmod(tmp_file, 0644)
-            if not dont_rename and os.path.exists(filepath):
-                os.rename(filepath, bak_file)
-        except Exception, e:
+        except:
             os.unlink(tmp_file)
-            raise e
+            raise
 
-        if not dont_rename:
-            try:
-                os.rename(tmp_file, filepath)
-            except Exception, e:
-                os.rename(bak_file, filepath)
-                raise e
-        else:
+
+def move_files(update_files, remove_files=None):
+    if not remove_files:
+        remove_files = set()
+
+    for filepath in update_files.iterkeys():
+        tmp_file = filepath + ".%d~" % os.getpid()
+        bak_file = filepath + ".%d~" % time.time()
+
+        logging.info("updating %s" % filepath)
+
+        if os.path.exists(filepath):
+            # Move previous version to a backup
+            os.rename(filepath, bak_file)
+
+        try:
+            os.rename(tmp_file, filepath)
+        except:
+            # Move backup file back so there's some sort of configuration
             os.rename(bak_file, filepath)
+            raise
 
     for filepath in remove_files:
-        logging.info("moving aside old file %s" % filepath)
-        if not dont_rename:
-            os.rename(filepath, filepath + ".%d~" % time.time())
+        bak_file = filepath + ".%d~" % time.time()
+
+        logging.info("moving %s (old file)" % filepath)
+
+        os.rename(filepath, bak_file)
+
+
+def update_files(update_files, remove_files=None):
+    stage_files(update_files)
+    move_files(update_files, remove_files)
