@@ -3,8 +3,6 @@ include $(top_srcdir)/Common.am
 
 ACLOCAL_MFLAGS = -I m4
 
-AM_CFLAGS += -DAGENT_VERSION=\"@PACKAGE_VERSION@\" -DPLUGINS_DIR=\"${pluginsdir}\" -DDATA_DIR=\"${datadir}\" -fvisibility=hidden
-
 SUBDIRS = lib src plugins commands tests
 
 EXTRA_DIST = install_libs.py install_modules.py nova-agent.py \

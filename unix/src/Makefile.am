@@ -1,7 +1,7 @@
 
 include $(top_srcdir)/Common.am
 
-AM_CFLAGS += -DDATA_DIR=\"${datadir}\" -fvisibility=hidden
+AM_CFLAGS += -DAGENT_VERSION=\"@PACKAGE_VERSION@\" -DDATA_DIR=\"${datadir}\" -fvisibility=hidden
 
 
 noinst_HEADERS = ../include/nova-agent_int.h ../include/python_int.h \
