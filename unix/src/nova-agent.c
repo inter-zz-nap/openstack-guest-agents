@@ -27,12 +27,19 @@
 #include <string.h>
 #include <signal.h>
 #include <errno.h>
+#include <pthread.h>
 #include "nova-agent_int.h"
 #include "libagent_int.h"
 
 #define AGENT_DEFAULT_LOG_LEVEL "info"
 #define AGENT_DEFAULT_LOG_FILE "/var/log/nova-agent.log"
 
+static sigset_t origsigmask;
+
+static void _restore_sigmask(void)
+{
+    sigprocmask(SIG_SETMASK, &origsigmask, NULL);
+}
 
 static void _agent_signal_loop(void)
 {
@@ -258,7 +265,11 @@ int main(int argc, char **argv)
     sigaddset(&mask, SIGINT);
     sigaddset(&mask, SIGTERM);
 
-    pthread_sigmask(SIG_BLOCK, &mask, NULL);
+    pthread_sigmask(SIG_BLOCK, &mask, &origsigmask);
+
+    /* Make sure we restore sigmask when the process forks so child process
+     * don't inherit our signal masking */
+    pthread_atfork(NULL, NULL, _restore_sigmask);
 
     err = agent_python_run_file(pi, config_file);
     if (err < 0)
