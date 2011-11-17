@@ -56,7 +56,7 @@ class TestJsonParser(agent_test.TestCase):
         self.assertEqual(resp, {"data": data})
 
     def test_3_no_command(self):
-        """Test jsonparser unknown command"""
+        """Test jsonparser no command"""
 
         resp = self.jsonparser.parse_request({"data": '{"value":""}'})
 
