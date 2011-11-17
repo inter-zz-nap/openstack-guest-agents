@@ -73,6 +73,8 @@ def configure_network(hostname, interfaces):
     # is installed to see what format should be used.
     status = _execute(['/usr/bin/pacman', '-Q', 'netcfg'])
     use_netcfg = (status == 0)
+    logging.info('using %s style configuration' %
+                 (use_netcfg and 'netcfg' or 'legacy'))
 
     update_files = {}
 
@@ -101,9 +103,6 @@ def configure_network(hostname, interfaces):
     filepath, data = commands.network.get_etc_hosts(interfaces, hostname)
     update_files[filepath] = data
 
-    # Write out new files
-    commands.network.update_files(update_files, remove_files)
-
     # Set hostname
     try:
         commands.network.sethostname(hostname)
@@ -111,16 +110,35 @@ def configure_network(hostname, interfaces):
         logging.error("Couldn't sethostname(): %s" % str(e))
         return (500, "Couldn't set hostname: %s" % str(e))
 
-    # Restart network
+    # Stage files
+    commands.network.stage_files(update_files)
+
+    # Down network
     if use_netcfg:
         for netname in netnames:
-            status = _execute(['/usr/bin/netcfg', '-r', netname])
+            status = _execute(['/usr/bin/netcfg', '-d', netname])
             if status != 0:
-                return (500, "Couldn't restart %s: %d" % (netname, status))
+                return (500, "Couldn't configure %s down: %d" %
+                             (netname, status))
     else:
-        status = _execute(['/etc/rc.d/network', 'restart'])
+        status = _execute(['/etc/rc.d/network', 'stop'])
         if status != 0:
-            return (500, "Couldn't restart network: %d" % status)
+            return (500, "Couldn't stop network: %d" % status)
+
+    # Move files
+    commands.network.move_files(update_files, remove_files)
+
+    # Up network
+    if use_netcfg:
+        for netname in netnames:
+            status = _execute(['/usr/bin/netcfg', '-u', netname])
+            if status != 0:
+                return (500, "Couldn't configure %s up: %d" %
+                             (netname, status))
+    else:
+        status = _execute(['/etc/rc.d/network', 'start'])
+        if status != 0:
+            return (500, "Couldn't start network: %d" % status)
 
     return (0, "")
 
