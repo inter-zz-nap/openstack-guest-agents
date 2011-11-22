@@ -92,12 +92,14 @@ static PyObject *_agentlib_get_interfaces(PyObject *self, PyObject *args)
         unsigned char *lladdr = (unsigned char *)LLADDR(sdl);
 #endif
 
+        PyObject *up = (ifa->ifa_flags & IFF_UP) ? Py_True : Py_False;
+
         char macaddr[sizeof("00:11:22:33:44:55") + 1];
         snprintf(macaddr, sizeof(macaddr), "%02x:%02x:%02x:%02x:%02x:%02x",
                 lladdr[0], lladdr[1], lladdr[2],
                 lladdr[3], lladdr[4], lladdr[5]);
 
-        PyObject *arg = Py_BuildValue("ss", ifa->ifa_name, macaddr);
+        PyObject *arg = Py_BuildValue("sOs", ifa->ifa_name, up, macaddr);
         if (!arg)
             goto err;
 

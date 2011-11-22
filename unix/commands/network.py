@@ -143,7 +143,8 @@ class NetworkCommands(commands.CommandBase):
 
         # Normalize interfaces data. It can come in a couple of different
         # (similar) formats, none of which are convenient.
-        by_macaddr = dict([(m, n) for n, m in agentlib.get_interfaces()])
+        by_macaddr = dict([(mac, (up, name))
+                           for name, up, mac in agentlib.get_interfaces()])
 
         config = {}
 
@@ -162,9 +163,13 @@ class NetworkCommands(commands.CommandBase):
             # 'label' used to be the method to determine which interface
             # this configuration applies to, but 'mac' is safer to use.
             # 'label' is being phased out now.
-            ifname = by_macaddr.get(mac)
-            if not ifname:
+            if mac not in by_macaddr:
                 raise RuntimeError('Unknown interface MAC %s' % mac)
+
+            up, ifname = by_macaddr[mac]
+
+            # Record if the interface is up already
+            ifconfig['up'] = up
 
             # List of IPv4 and IPv6 addresses
             ip4s = interface.get('ips', [])
