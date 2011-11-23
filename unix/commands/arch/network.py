@@ -113,13 +113,24 @@ def configure_network(hostname, interfaces):
     # Stage files
     commands.network.stage_files(update_files)
 
+    errors = set()
+
     # Down network
+    logging.info('configuring interfaces down')
     if use_netcfg:
         for netname in netnames:
+            if not interfaces[netname]['up']:
+                # Don't try to down an interface that isn't already up
+                logging.info('  %s, skipped (already down)' %
+                             netname)
+                continue
+
             status = _execute(['/usr/bin/netcfg', '-d', netname])
             if status != 0:
-                return (500, "Couldn't configure %s down: %d" %
-                             (netname, status))
+                logging.info('  %s, failed (status %d)' % (netname, status))
+                # Treat down failures as soft failures
+            else:
+                logging.info('  %s, success' % netname)
     else:
         status = _execute(['/etc/rc.d/network', 'stop'])
         if status != 0:
@@ -129,16 +140,24 @@ def configure_network(hostname, interfaces):
     commands.network.move_files(update_files, remove_files)
 
     # Up network
+    logging.info('configuring interfaces up')
     if use_netcfg:
         for netname in netnames:
             status = _execute(['/usr/bin/netcfg', '-u', netname])
             if status != 0:
-                return (500, "Couldn't configure %s up: %d" %
-                             (netname, status))
+                logging.info('  %s, failed (status %d)' % (netname, status))
+                errors.add(netname)
+            else:
+                logging.info('  %s, success' % netname)
     else:
         status = _execute(['/etc/rc.d/network', 'start'])
         if status != 0:
             return (500, "Couldn't start network: %d" % status)
+
+    if errors:
+        errors = list(errors)
+        errors.sort()
+        return (500, 'Failed to start ' + ', '.join(errors))
 
     return (0, "")
 
