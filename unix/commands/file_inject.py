@@ -52,6 +52,9 @@ class FileInject(commands.CommandBase):
         f.write(data)
         f.close()
 
+        os.chown(tempfilename, 0, 0)
+        os.chmod(tempfilename, 0644)
+
         if os.path.exists(filename):
             # Backup old file first
             os.rename(filename, filename + '.bak.%s' % time.time())

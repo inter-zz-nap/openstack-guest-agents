@@ -370,6 +370,8 @@ def sethostname(hostname):
 
 
 def stage_files(update_files):
+    tmp_suffix = '%d.tmp~' % os.getpid()
+
     for filepath, data in update_files.items():
         if os.path.exists(filepath):
             # If the data is the same, skip it, nothing to do
@@ -378,10 +380,9 @@ def stage_files(update_files):
                 del update_files[filepath]
                 continue
 
-        tmp_file = filepath + ".%d~" % os.getpid()
+        logging.info("staging %s (%s)" % (filepath, tmp_suffix))
 
-        logging.info("writing %s" % filepath)
-
+        tmp_file = '%s.%s' % (filepath, tmp_suffix)
         f = open(tmp_file, 'w')
         try:
             f.write(data)
@@ -398,29 +399,27 @@ def move_files(update_files, remove_files=None):
     if not remove_files:
         remove_files = set()
 
+    tmp_suffix = '%d.tmp~' % os.getpid()
+    bak_suffix = '%d.bak~' % time.time()
+
     for filepath in update_files.iterkeys():
-        tmp_file = filepath + ".%d~" % os.getpid()
-        bak_file = filepath + ".%d~" % time.time()
-
-        logging.info("updating %s" % filepath)
-
         if os.path.exists(filepath):
             # Move previous version to a backup
-            os.rename(filepath, bak_file)
+            logging.info("backing up %s (%s)" % (filepath, bak_suffix))
+            os.rename(filepath, '%s.%s' % (filepath, bak_suffix))
 
+        logging.info("updating %s" % filepath)
         try:
-            os.rename(tmp_file, filepath)
+            os.rename('%s.%s' % (filepath, tmp_suffix), filepath)
         except:
             # Move backup file back so there's some sort of configuration
-            os.rename(bak_file, filepath)
+            os.rename('%s.%s' % (filepath, bak_suffix), filepath)
             raise
 
     for filepath in remove_files:
-        bak_file = filepath + ".%d~" % time.time()
+        logging.info("moving %s (%s)" % (filepath, bak_suffix))
 
-        logging.info("moving %s (old file)" % filepath)
-
-        os.rename(filepath, bak_file)
+        os.rename(filepath, '%s.%s' % (filepath, bak_file))
 
 
 def update_files(update_files, remove_files=None):
