@@ -27,6 +27,27 @@ import os.path
 import time
 
 
+def _write_file(filename, data):
+    dirname = os.path.dirname(filename)
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
+
+    tempfilename = filename + '.tmp.%s' % time.time()
+
+    f = open(tempfilename, 'w')
+    f.write(data)
+    f.close()
+
+    os.chown(tempfilename, 0, 0)
+    os.chmod(tempfilename, 0644)
+
+    if os.path.exists(filename):
+        # Backup old file first
+        os.rename(filename, filename + '.bak.%s' % time.time())
+
+    os.rename(tempfilename, filename)
+
+
 class FileInject(commands.CommandBase):
 
     def __init__(self, *args, **kwargs):
@@ -42,23 +63,6 @@ class FileInject(commands.CommandBase):
 
         (filename, data) = b64_decoded.split(',', 1)
 
-        dirname = os.path.dirname(filename)
-        if not os.path.exists(dirname):
-            os.makedirs(dirname)
-
-        tempfilename = filename + '.tmp.%s' % time.time()
-
-        f = open(tempfilename, 'w')
-        f.write(data)
-        f.close()
-
-        os.chown(tempfilename, 0, 0)
-        os.chmod(tempfilename, 0644)
-
-        if os.path.exists(filename):
-            # Backup old file first
-            os.rename(filename, filename + '.bak.%s' % time.time())
-
-        os.rename(tempfilename, filename)
+        _write_file(filename, data)
 
         return (0, "")
