@@ -41,6 +41,11 @@ arch linux network helper module
 # of the older style colon interfaces for IP aliasing. So we have to use
 # a hack to get IP aliasing working:
 # https://bbs.archlinux.org/viewtopic.php?pid=951573#p951573
+#
+# Arch is a rolling release, meaning new features and updated packages
+# roll out on a unpredictable schedule. It also means there is no such
+# thing as v1.0 or v2.0. We check if the netcfg package is installed to
+# determine which format should be used.
 
 import os
 import re
@@ -56,30 +61,48 @@ NETWORK_DIR = "/etc/network.d"
 
 
 def _execute(command):
-    pipe = subprocess.PIPE
     logging.info('executing %s' % ' '.join(command))
-    p = subprocess.Popen(command, stdin=pipe, stdout=pipe, stderr=pipe, env={})
-    logging.debug('waiting on pid %d' % p.pid)
-    status = os.waitpid(p.pid, 0)[1]
-    logging.debug('status = %d' % status)
 
-    return status
+    pipe = subprocess.PIPE
+    p = subprocess.Popen(command, stdin=pipe, stdout=pipe, stderr=pipe, env={})
+
+    # Wait for process to finish and get output
+    stdout, stderr = p.communicate()
+
+    logging.debug('status = %d' % p.returncode)
+    if p.returncode:
+        logging.info('stdout = %r' % stdout)
+        logging.info('stderr = %r' % stderr)
+
+    return p.returncode
 
 
 def configure_network(hostname, interfaces):
-    # Arch is a rolling release, meaning new features and updated packages
-    # roll out on a unpredictable schedule. It also means there is no such
-    # thing as v1.0 or v2.0. So, let's try checking if the netcfg package
-    # is installed to see what format should be used.
+    update_files = {}
+
+    # We need to figure out what style of network configuration is
+    # currently being used by looking at /etc/rc.conf and then look
+    # to see what style of network configuration we want to use by
+    # looking to see if the netcfg package is installed
+
+    if os.path.exists(CONF_FILE):
+        update_files[CONF_FILE] = open(CONF_FILE).read()
+
+    infile = StringIO(update_files.get(CONF_FILE, ''))
+
+    cur_netcfg = True	# Currently using netcfg
+    lines, variables = _parse_config(infile)
+    lineno = variables.get('DAEMONS')
+    if lineno is not None:
+        daemons = _parse_variable(lines[lineno])
+        if 'network' in daemons:
+            # Config uses legacy style networking
+            cur_netcfg = False
+
     status = _execute(['/usr/bin/pacman', '-Q', 'netcfg'])
     use_netcfg = (status == 0)
     logging.info('using %s style configuration' %
                  (use_netcfg and 'netcfg' or 'legacy'))
-
-    update_files = {}
-
-    if os.path.exists(CONF_FILE):
-        update_files[CONF_FILE] = open(CONF_FILE).read()
 
     if use_netcfg:
         remove_files, netnames = process_interface_files_netcfg(
@@ -117,7 +140,7 @@ def configure_network(hostname, interfaces):
 
     # Down network
     logging.info('configuring interfaces down')
-    if use_netcfg:
+    if cur_netcfg:
         for netname in netnames:
             if not interfaces[netname]['up']:
                 # Don't try to down an interface that isn't already up
@@ -145,8 +168,23 @@ def configure_network(hostname, interfaces):
         for netname in netnames:
             status = _execute(['/usr/bin/netcfg', '-u', netname])
             if status != 0:
-                logging.info('  %s, failed (status %d)' % (netname, status))
-                errors.add(netname)
+                logging.info('  %s, failed (status %d), trying again' %
+                             (netname, status))
+
+                # HACK: Migrating from legacy to netcfg configurations is
+                # troublesome because of Arch bugs. Stopping the network
+                # in legacy downs the interface, but doesn't remove the IP
+                # addresses. This causes netcfg to complain and fail when
+                # we go to configure the interface up. As a side-effect, it
+                # will remove the offending IP. A second attempt to configure
+                # the interface up succeeds. So we'll try a second time.
+                status = _execute(['/usr/bin/netcfg', '-u', netname])
+                if status != 0:
+                    logging.info('  %s, failed (status %d)' %
+                                 (netname, status))
+                    errors.add(netname)
+                else:
+                    logging.info('  %s, success' % netname)
             else:
                 logging.info('  %s, success' % netname)
     else:
@@ -196,6 +234,26 @@ def _parse_variable(line):
         v = v[1:-1]
 
     return [name.lstrip('!') for name in re.split('\s+', v.strip())]
+
+
+def _parse_config(infile):
+    lines = []
+    variables = {}
+    for line in infile:
+        line = line.strip()
+        lines.append(line)
+
+        # FIXME: This doesn't correctly parse shell scripts perfectly. It
+        # assumes a fairly simple subset
+
+        if '=' not in line:
+            continue
+
+        k, v = line.split('=', 1)
+        k = k.strip()
+        variables[k] = len(lines) - 1
+
+    return lines, variables
 
 
 def _update_rc_conf_legacy(infile, interfaces):
@@ -256,21 +314,7 @@ def _update_rc_conf_legacy(infile, interfaces):
         routes.append(('gateway6', 'default gw %s' % gateway6))
 
     # Then load old file
-    lines = []
-    variables = {}
-    for line in infile:
-        line = line.strip()
-        lines.append(line)
-
-        # FIXME: This doesn't correctly parse shell scripts perfectly. It
-        # assumes a fairly simple subset
-
-        if '=' not in line:
-            continue
-
-        k, v = line.split('=', 1)
-        k = k.strip()
-        variables[k] = len(lines) - 1
+    lines, variables = _parse_config(infile)
 
     # Update INTERFACES
     lineno = variables.get('INTERFACES')
@@ -338,7 +382,7 @@ def _update_rc_conf_legacy(infile, interfaces):
     # Filter out any removed lines
     lines = filter(lambda l: l is not None, lines)
 
-    # Patch into new file
+    # Serialize into new file
     outfile = StringIO()
     for line in lines:
         print >> outfile, line
@@ -413,22 +457,8 @@ def _get_file_data_netcfg(ifname, interface):
 
 
 def _update_rc_conf_netcfg(infile, netnames):
-    # Then load old file
-    lines = []
-    variables = {}
-    for line in infile:
-        line = line.strip()
-        lines.append(line)
-
-        # FIXME: This doesn't correctly parse shell scripts perfectly. It
-        # assumes a fairly simple subset
-
-        if '=' not in line:
-            continue
-
-        k, v = line.split('=', 1)
-        k = k.strip()
-        variables[k] = len(lines) - 1
+    # Load old file
+    lines, variables = _parse_config(infile)
 
     # Update NETWORKS
     lineno = variables.get('NETWORKS')
@@ -472,7 +502,7 @@ def _update_rc_conf_netcfg(infile, netnames):
         except ValueError:
             pass
 
-    # Patch into new file
+    # Serialize into new file
     outfile = StringIO()
     for line in lines:
         print >> outfile, line
