@@ -227,13 +227,16 @@ def get_hostname_file(infile, hostname):
     return outfile.read()
 
 
-def _parse_variable(line):
+def _parse_variable(line, strip_bang=False):
     k, v = line.split('=')
     v = v.strip()
     if v[0] == '(' and v[-1] == ')':
         v = v[1:-1]
 
-    return [name.lstrip('!') for name in re.split('\s+', v.strip())]
+    vars = re.split('\s+', v.strip())
+    if strip_bang:
+        vars = [v.lstrip('!') for v in vars]
+    return vars
 
 
 def _parse_config(infile):
@@ -320,7 +323,7 @@ def _update_rc_conf_legacy(infile, interfaces):
     lineno = variables.get('INTERFACES')
     if lineno is not None:
         # Remove old lines
-        for name in _parse_variable(lines[lineno]):
+        for name in _parse_variable(lines[lineno], strip_bang=True):
             if name in variables:
                 lines[variables[name]] = None
     else:
@@ -340,7 +343,7 @@ def _update_rc_conf_legacy(infile, interfaces):
     lineno = variables.get('ROUTES')
     if lineno is not None:
         # Remove old lines
-        for name in _parse_variable(lines[lineno]):
+        for name in _parse_variable(lines[lineno], strip_bang=True):
             if name in variables:
                 lines[variables[name]] = None
     else:
@@ -359,7 +362,7 @@ def _update_rc_conf_legacy(infile, interfaces):
     # (Possibly) comment out NETWORKS
     lineno = variables.get('NETWORKS')
     if lineno is not None:
-        for name in _parse_variable(lines[lineno]):
+        for name in _parse_variable(lines[lineno], strip_bang=True):
             nlineno = variables.get(name)
             if nlineno is not None:
                 lines[nlineno] = '#' + lines[lineno]
@@ -472,7 +475,7 @@ def _update_rc_conf_netcfg(infile, netnames):
     # (Possibly) comment out INTERFACES
     lineno = variables.get('INTERFACES')
     if lineno is not None:
-        for name in _parse_variable(lines[lineno]):
+        for name in _parse_variable(lines[lineno], strip_bang=True):
             nlineno = variables.get(name)
             if nlineno is not None:
                 lines[nlineno] = '#' + lines[lineno]
@@ -482,7 +485,7 @@ def _update_rc_conf_netcfg(infile, netnames):
     # (Possibly) comment out ROUTES
     lineno = variables.get('ROUTES')
     if lineno is not None:
-        for name in _parse_variable(lines[lineno]):
+        for name in _parse_variable(lines[lineno], strip_bang=True):
             nlineno = variables.get(name)
             if nlineno is not None:
                 lines[nlineno] = '#' + lines[lineno]
