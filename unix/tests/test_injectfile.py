@@ -22,13 +22,29 @@ Misc commands tester
 
 import base64
 import os
+import stubout
 
 import agent_test
 import agentlib
+from commands import file_inject
 
 
 class InjectFileTests(agent_test.TestCase):
     """InjectFile tests"""
+
+    def setUp(self):
+        super(InjectFileTests, self).setUp()
+        self.stubs = stubout.StubOutForTesting()
+
+        # Real _write_file does a chown to uid 0 which will fail, so just
+        # do the bare minimum stub here
+        def _write_file(filename, data):
+            open(filename, 'w').write(data)
+        self.stubs.Set(file_inject, '_write_file', _write_file)
+
+    def tearDown(self):
+        super(InjectFileTests, self).tearDown()
+        self.stubs.UnsetAll()
 
     def test_random_data(self):
         """Test 'injectfile' with a random binary data filled file"""
