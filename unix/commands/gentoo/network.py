@@ -107,15 +107,6 @@ def get_hostname_file(hostname):
     return '# Automatically generated, do not edit\nHOSTNAME="%s"\n' % hostname
 
 
-def _parse_variable(line):
-    k, v = line.split('=')
-    v = v.strip()
-    if v[0] == '(' and v[-1] == ')':
-        v = v[1:-1]
-
-    return [name.lstrip('!') for name in re.split('\s+', v.strip())]
-
-
 def _get_file_data_legacy(interfaces):
     """
     Return data for (sub-)interfaces and routes
