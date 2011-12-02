@@ -107,15 +107,6 @@ def get_hostname_file(hostname):
     return '# Automatically generated, do not edit\nHOSTNAME="%s"\n' % hostname
 
 
-def _parse_variable(line):
-    k, v = line.split('=')
-    v = v.strip()
-    if v[0] == '(' and v[-1] == ')':
-        v = v[1:-1]
-
-    return [name.lstrip('!') for name in re.split('\s+', v.strip())]
-
-
 def _get_file_data_legacy(interfaces):
     """
     Return data for (sub-)interfaces and routes
@@ -152,7 +143,7 @@ def _get_file_data_legacy(interfaces):
 
         routes = []
         for route in interface['routes']:
-            routes.append('%(network)s netmask %(netmask)s via %(gateway)s' %
+            routes.append('%(network)s netmask %(netmask)s gw %(gateway)s' %
                           route)
 
         if gateway4:
@@ -206,7 +197,7 @@ def _get_file_data_openrc(interfaces):
 
         route_data = []
         for route in interface['routes']:
-            route_data.append('%(network)s netmask %(netmask)s '
+            route_data.append('%(network)s/%(prefixlen)s '
                               'via %(gateway)s' % route)
 
         if gateway4:
