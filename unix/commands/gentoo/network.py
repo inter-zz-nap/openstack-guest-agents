@@ -143,7 +143,7 @@ def _get_file_data_legacy(interfaces):
 
         routes = []
         for route in interface['routes']:
-            routes.append('%(network)s netmask %(netmask)s via %(gateway)s' %
+            routes.append('%(network)s netmask %(netmask)s gw %(gateway)s' %
                           route)
 
         if gateway4:
@@ -197,7 +197,7 @@ def _get_file_data_openrc(interfaces):
 
         route_data = []
         for route in interface['routes']:
-            route_data.append('%(network)s netmask %(netmask)s '
+            route_data.append('%(network)s/%(prefixlen)s '
                               'via %(gateway)s' % route)
 
         if gateway4:
