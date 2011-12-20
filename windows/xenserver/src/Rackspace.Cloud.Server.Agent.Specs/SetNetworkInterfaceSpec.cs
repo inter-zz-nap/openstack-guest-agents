@@ -85,7 +85,7 @@ namespace Rackspace.Cloud.Server.Agent.Specs {
             ExecutableProcessQueue.Expect(x => x.Go()).Repeat.Twice();
 
             SetNetworkInterface = new SetNetworkInterface(ExecutableProcessQueue, WmiMacNetworkNameGetter, Logger);
-            SetNetworkInterface.Execute(NetworkInterface);
+            SetNetworkInterface.Execute(new List<NetworkInterface>{NetworkInterface});
         }
 
         [Test]
@@ -148,7 +148,7 @@ namespace Rackspace.Cloud.Server.Agent.Specs {
         [Test]
         public void should_not_set_the_same_label_again() {
             NetworkInterface.label = "Lan1";
-            SetNetworkInterface.Execute(NetworkInterface);
+            SetNetworkInterface.Execute(new List<NetworkInterface> { NetworkInterface });
 
             ExecutableProcessQueue.AssertWasNotCalled(x => x.Enqueue("netsh", "interface set interface name=\"Lan1\" newname=\"Lan1\""));
         }
@@ -167,7 +167,7 @@ namespace Rackspace.Cloud.Server.Agent.Specs {
 
         [Test]
         public void should_configure_the_interface_correctly_for_both_ips_with_the_gateway() {
-            SetNetworkInterface.Execute(NetworkInterface);
+            SetNetworkInterface.Execute(new List<NetworkInterface> { NetworkInterface });
             ExecutableProcessQueue.AssertWasCalled(
                 x =>
                 x.Enqueue("netsh",
@@ -181,7 +181,7 @@ namespace Rackspace.Cloud.Server.Agent.Specs {
         [Test]
         public void should_configure_the_interface_correctly_for_both_ips_without_the_gateway() {
             NetworkInterface.gateway = null;
-            SetNetworkInterface.Execute(NetworkInterface);
+            SetNetworkInterface.Execute(new List<NetworkInterface> { NetworkInterface });
             ExecutableProcessQueue.AssertWasCalled(
                 x =>x.Enqueue("netsh","interface ip add address name=\"Lan1\" addr=192.168.1.110 mask=255.255.255.0")); 
             ExecutableProcessQueue.AssertWasCalled(
@@ -198,7 +198,7 @@ namespace Rackspace.Cloud.Server.Agent.Specs {
             ExecutableProcessQueue.Expect(x => x.Go()).Repeat.Once();
 
             SetNetworkInterface = new SetNetworkInterface(ExecutableProcessQueue, WmiMacNetworkNameGetter, Logger);
-            SetNetworkInterface.Execute(NetworkInterface);
+            SetNetworkInterface.Execute(new List<NetworkInterface> { NetworkInterface });
         }
 
         [Test]
@@ -220,7 +220,7 @@ namespace Rackspace.Cloud.Server.Agent.Specs {
         [Test]
         [ExpectedException(typeof (ApplicationException))]
         public void ApplicationException_should_be_thrown() {
-            SetNetworkInterface.Execute(NetworkInterface);
+            SetNetworkInterface.Execute(new List<NetworkInterface> { NetworkInterface });
         }
     }
 
@@ -235,7 +235,7 @@ namespace Rackspace.Cloud.Server.Agent.Specs {
 
         [Test]
         public void should_configure_the_interface_correctly_for_one_ip_with_the_gateway() {
-            SetNetworkInterface.Execute(NetworkInterface);
+            SetNetworkInterface.Execute(new List<NetworkInterface> { NetworkInterface });
             ExecutableProcessQueue.AssertWasCalled(
                 x =>
                 x.Enqueue("netsh",

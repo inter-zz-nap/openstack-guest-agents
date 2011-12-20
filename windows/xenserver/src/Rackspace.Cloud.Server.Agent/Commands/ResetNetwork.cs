@@ -16,6 +16,7 @@
 using Rackspace.Cloud.Server.Agent.Actions;
 using Rackspace.Cloud.Server.Agent.Configuration;
 using Rackspace.Cloud.Server.Agent.Interfaces;
+using System.Linq;
 
 namespace Rackspace.Cloud.Server.Agent.Commands {
     /// <summary>
@@ -35,10 +36,7 @@ namespace Rackspace.Cloud.Server.Agent.Commands {
         public ExecutableResult Execute(string keyValue) {
             var network = _xenNetworkInformation.Get();
 
-            foreach (var networkinterface in network.Interfaces.Values) {
-                _setNetworkInterface.Execute(networkinterface);
-            }
-
+            _setNetworkInterface.Execute(network.Interfaces.Values.ToList());
             _setNetworkRoutes.Execute(network);
 
             return new ExecutableResult();
