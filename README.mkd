@@ -1,6 +1,39 @@
 # Internap OpenStack Guest Agents
 
 This is a fork of the openstack-guest-agents code on Launchpad at
-lp:openstack-guest-agents.  The home page for the openstack-guest-agents
-project on Launchpad is [https://launchpad.net/openstack-guest-agents]
-(http://launchpad.net/openstack-guest-agents)
+lp:openstack-guest-agents with some Internap-specific customizations.  
+The home page for the openstack-guest-agents project on Launchpad is 
+[here](http://launchpad.net/openstack-guest-agents)
+
+Building the Windows Guest Agent
+--------------------------------
+
+In order to build the Windows OpenStack guest agent, you must have 
+Ruby/Rake/Albacore installed, plus the XenServer tools to run the unit
+tests.  To install Ruby/Rake/Albacore, plus the XenServer tools:
+
+1. *Install Ruby*
+   Run the [RubyInstaller for Windows](http://rubyinstaller.org)
+   Suggestion: Check "Add Ruby executables to your PATH" during the
+   install.
+
+2. *Install Rake*
+   From the command line, run: ```gem install rake```
+
+3. *Install Albacore*
+   From the command line, run: ```gem install albacore```
+
+4. *Install XenServer Tools*
+
+If you would prefer not to install Ruby/Rake/Albacore to build the .NET
+code, take a look at these instructions on how to run [Ruby/Rake/Albacore
+without installing them](http://lostechies.com/derickbailey/2010/03/23/running-ruby-and-rake-and-albacore-without-installing-them/)
+
+To build, type ```cd windows\xenserver``` in a command-line window, 
+then run: ```rake install```
+(If you do not have XenServer Tools installed, the unit tests will not run
+successfully and it will fail the build.  As a workaround, run 
+```rake compile``` then ```rake package``` to avoid runnig the unit tests.)
+
+The build output can be found in ```windows\xenserver\builds```,
+two Zipfiles: AgentService.zip and UpdateService.zip.
