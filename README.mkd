@@ -1,7 +1,7 @@
 # Internap OpenStack Guest Agents
 
 This is a fork of the openstack-guest-agents code on Launchpad at
-lp:openstack-guest-agents with some Internap-specific customizations.  
+```lp:openstack-guest-agents``` with some Internap-specific customizations.  
 The home page for the openstack-guest-agents project on Launchpad is 
 [here](http://launchpad.net/openstack-guest-agents)
 
@@ -12,18 +12,18 @@ In order to build the Windows OpenStack guest agent, you must have
 Ruby/Rake/Albacore installed, plus the XenServer tools to run the unit
 tests.  To install Ruby/Rake/Albacore, plus the XenServer tools:
 
-1. *Install Ruby*
+1. *Install Ruby* -
    Run the [RubyInstaller for Windows](http://rubyinstaller.org)
    Suggestion: Check "Add Ruby executables to your PATH" during the
    install.
 
-2. *Install Rake*
+2. *Install Rake* -
    From the command line, run: ```gem install rake```
 
-3. *Install Albacore*
+3. *Install Albacore* -
    From the command line, run: ```gem install albacore```
 
-4. *Install XenServer Tools*
+4. *Install XenServer Tools* -
 
 If you would prefer not to install Ruby/Rake/Albacore to build the .NET
 code, take a look at these instructions on how to run [Ruby/Rake/Albacore
