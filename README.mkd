@@ -1,0 +1,6 @@
+# Internap OpenStack Guest Agents
+
+This is a fork of the openstack-guest-agents code on Launchpad at
+lp:openstack-guest-agents.  The home page for the openstack-guest-agents
+project on Launchpad is [https://launchpad.net/openstack-guest-agents]
+(http://launchpad.net/openstack-guest-agents)
