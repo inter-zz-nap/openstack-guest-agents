@@ -14,16 +14,48 @@
 //    under the License.
 
 using System.ServiceProcess;
+using System;
+using System.Reflection;
 
 namespace Rackspace.Cloud.Server.Agent.Service {
     static class Program {
-        static void Main() {
+        static void Main(string[] args) {
             ServiceBase[] ServicesToRun;
             ServicesToRun = new ServiceBase[] 
                                 { 
                                     new Agent.Service.AgentService() 
                                 };
-            ServiceBase.Run(ServicesToRun);
+            if (Environment.UserInteractive)
+            {
+                // Enable debugging from the command-line or Visual Studio
+                // Only run this code if we are run from the command line (or from the Visual Studio debugger)
+                // This is a common pattern for debugging Windows NT Services:
+                // http://stackoverflow.com/questions/2629720/debug-windows-service
+                //
+                // Another approach would be to use the Windows Service Helper from CodePlex:
+                // http://windowsservicehelper.codeplex.com/
+                Type type = typeof(ServiceBase);
+                BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+                MethodInfo method = type.GetMethod("OnStart", flags);
+
+                // Handle the case where we might have multiple service entry points by spinning through
+                // all of them
+                foreach (ServiceBase service in ServicesToRun)
+                {
+                    method.Invoke(service, new object[] { args });
+                }
+                Console.WriteLine("Press any key to exit");
+                Console.Read();
+                foreach (ServiceBase service in ServicesToRun)
+                {
+                    service.Stop();
+                }
+            }
+            else
+            {
+                // This is what normally runs when we are run as a service
+                ServiceBase.Run(ServicesToRun);
+            }
         }
     }
 }
